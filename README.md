@@ -59,7 +59,7 @@ The ERD includes core components of an E-Commerce system, such as:
 This schema represents the core structure of a simplified E-Commerce system.  
 While the design follows standard relational modeling practices, a small amount of **intentional denormalization** was applied to improve query performance and simplify reporting.
 
-### Specifically:
+### Explanation:
 
 - The **Order_History** table stores customer names and total amounts directly, even though this data also exists in other tables.  
   This avoids expensive joins when generating historical order summaries, this might slower the creating new order process but it could be fixed with a **background task** or **batch task** that runs once or twice a week to avoid this problem.
