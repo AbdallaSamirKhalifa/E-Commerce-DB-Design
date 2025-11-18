@@ -12,6 +12,21 @@ This project is part of a mentorship program aimed at strengthening our **techni
 
 ---
 
+## Project Structure
+
+```
+E-Commerce-Database/
+├── README.md           # Project documentation
+|── ERD.png             # Entity Relationship Diagram
+|── Relational-Schema.png         # Database Schema
+└── DDL_DML/
+    |── Shcema.sql        # Database schema (CREATE statements)
+    └── Test_Data.sql     # Sample data (INSERT statements)
+
+```
+
+---
+
 ## **Table of Contents**
 
 - [Motivation](#motivation)
@@ -20,6 +35,7 @@ This project is part of a mentorship program aimed at strengthening our **techni
 - [ERD](#erd)
 - [Relational Schema](#schema)
 - [Schema DDL](#DDL)
+- [Data For Testing](#test-data)
 
 ---
 
@@ -134,5 +150,28 @@ Order_Date TIMESTAMP NOT NULL
 )
 
 ```
+
+---
+
+---
+
+<h2 align="center" id="test-data">Test Data</h2>
+
+The database includes comprehensive sample data for testing and development:
+
+- **5 Categories**: Electronics, Clothing, Books, Home & Garden, Sports
+- **12 Products**: Various items with realistic prices and stock quantities
+- **8 Customers**: Sample customer accounts with unique emails
+- **10 Orders**: Complete order records with multiple items
+- **19 Order Details**: Individual line items across all orders
+
+All test data respects database constraints:
+
+- ✅ Foreign key relationships
+- ✅ CHECK constraints (prices > 0, quantities > 0)
+- ✅ UNIQUE constraints (customer emails)
+- ✅ NOT NULL constraints
+
+📄 **View full test data**: [Test_Data.sql](./DDL_DML/Test_Data.sql)
 
 ---
