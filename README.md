@@ -155,23 +155,15 @@ Order_Date TIMESTAMP NOT NULL
 
 ---
 
----
-
 <h2 align="center" id="test-data">Test Data</h2>
 
 The database includes comprehensive sample data for testing and development:
 
-- **5 Categories**: Electronics, Clothing, Books, Home & Garden, Sports
-- **12 Products**: Various items with realistic prices and stock quantities
-- **8 Customers**: Sample customer accounts with unique emails
-- **10 Orders**: Complete order records with multiple items
-- **19 Order Details**: Individual line items across all orders
-
 All test data respects database constraints:
 
 - ✅ Foreign key relationships
-- ✅ CHECK constraints (prices > 0, quantities > 0)
-- ✅ UNIQUE constraints (customer emails)
+- ✅ CHECK constraints
+- ✅ UNIQUE constraints
 - ✅ NOT NULL constraints
 
 📄 **View full test data**: [Test_Data.sql](./DDL_DML/Test_Data.sql)
@@ -193,7 +185,8 @@ HAVING order_date = Some_Date;
 ## SQL query to generate a monthly report of the top-selling products in a given month.
 
 ```sql
-SELECT DATE_PART('MONTH', orders.order_date) AS month, Product.Name, SUM(order_details.qty) AS quantity, SUM(order_details.unit_price) AS revenue FROM product
+SELECT DATE_PART('MONTH', orders.order_date) AS month, Product.Name,
+ SUM(order_details.qty) AS quantity, SUM(order_details.unit_price) AS revenue FROM product
  JOIN order_details ON order_details.product_id = product.product_id
  JOIN orders ON order_details.order_id = orders.order_ID
  GROUP BY name, month
@@ -207,10 +200,12 @@ SELECT DATE_PART('MONTH', orders.order_date) AS month, Product.Name, SUM(order_d
 ## SQL query to retrieve a list of customers who have placed orders totaling more than $500 in the past month (Include customer names and their total order amounts).
 
 ```sql
-SELECT customer.first_name || ' ' || customer.last_name AS name, SUM(orders.total_amount) AS total_amount FROM
+SELECT customer.first_name || ' ' || customer.last_name AS name,
+ SUM(orders.total_amount) AS total_amount FROM
 customer JOIN orders ON customer.customer_id = orders.customer_id
 GROUP BY name, DATE_PART('MONTH', orders.order_date)
-HAVING SUM(orders.total_amount) > 500 AND  DATE_PART('MONTH', orders.order_date) = DATE_PART('MONTH', CURRENT_DATE) - 1
+HAVING SUM(orders.total_amount) > 500 AND
+  DATE_PART('MONTH', orders.order_date) = DATE_PART('MONTH', CURRENT_DATE) - 1
 ORDER BY total_amount DESC;
 ```
 
@@ -219,7 +214,8 @@ ORDER BY total_amount DESC;
 ```sql
 SELECT customer_full_name, SUM(total_amount) total_amount FROM order_history
 GROUP BY customer_full_name, DATE_PART('MONTH', order_date)
-HAVING SUM(total_amount) > 500 AND  DATE_PART('MONTH', order_date) = DATE_PART('MONTH', CURRENT_DATE) - 1
+HAVING SUM(total_amount) > 500 AND
+ DATE_PART('MONTH', order_date) = DATE_PART('MONTH', CURRENT_DATE) - 1
 ORDER BY total_amount DESC;
 ```
 
