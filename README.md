@@ -170,17 +170,23 @@ All test data respects database constraints:
 
 ---
 
+## <h2 align="center" id="queries">Queries</h2>
+
 ## query to generate a daily report of the total revenue for a specific date.
 
 ```sql
-SELECT order_date ,SUM(total_amount) FROM ORDERS
+SELECT order_date ,SUM(total_amount) AS total_amount FROM ORDERS
 GROUP BY order_date
-HAVING order_date = Some_Date;
+HAVING order_date = '2024-11-03';
 ```
 
----
+### Smaple Output
 
-## <h2 align="center" id="queries">Queries</h2>
+| order_date   | total_amount |
+| ------------ | ------------ |
+| '2024-11-03' | 2479.80      |
+
+---
 
 ## SQL query to generate a monthly report of the top-selling products in a given month.
 
@@ -190,10 +196,25 @@ SELECT DATE_PART('MONTH', orders.order_date) AS month, Product.Name,
  JOIN order_details ON order_details.product_id = product.product_id
  JOIN orders ON order_details.order_id = orders.order_ID
  GROUP BY name, month
- HAVING DATE_PART('MONTH', orders.order_date) = given_month
+ HAVING DATE_PART('MONTH', orders.order_date) = '11'
  ORDER BY quantity DESC
  LIMIT 10;
 ```
+
+### Smaple Output
+
+| month | name             | quantity | revenue |
+| ----- | ---------------- | -------- | ------- |
+| 11    | T-Shirt          | 21       | 79.96   |
+| 11    | Yoga Mat         | 12       | 139.96  |
+| 11    | Jeans            | 7        | 99.98   |
+| 11    | Hoodie           | 7        | 119.97  |
+| 11    | Fiction Novel    | 6        | 29.98   |
+| 11    | Programming Book | 5        | 134.97  |
+| 11    | Organic Tea Set  | 5        | 59.98   |
+| 11    | Resistance Bands | 5        | 19.99   |
+| 11    | Basketball       | 4        | 49.98   |
+| 11    | Board Game       | 4        | 69.98   |
 
 ---
 
@@ -208,6 +229,18 @@ HAVING SUM(orders.total_amount) > 500 AND
   DATE_PART('MONTH', orders.order_date) = DATE_PART('MONTH', CURRENT_DATE) - 1
 ORDER BY total_amount DESC;
 ```
+
+### Smaple Output
+
+| name             | total_amount |
+| ---------------- | ------------ |
+| John Smith       | 2199.96      |
+| Sarah Johnson    | 2024.93      |
+| Robert Miller    | 1624.95      |
+| Emily Brown      | 799.95       |
+| William Wilson   | 729.93       |
+| Michael Williams | 709.89       |
+| James Martinez   | 669.92       |
 
 ### Same result but getting the benifit of denormalization we applied erlier.
 
