@@ -73,7 +73,10 @@ These denormalizations are chosen on purpose for practical advantages in analyti
 
 <h2 align="center" id="DDL">Schema DDL</h2>
 
-```
+```sql
+
+CREATE DATABASE E_Commerce;
+
 CREATE TABLE IF NOT EXISTS Category(
 Category_ID INT PRIMARY KEY,
 Category_Name VARCHAR(20) NOT NULL
@@ -128,6 +131,7 @@ Customer_Full_Name VARCHAR(40) NOT NULL,
 Total_Amount DECIMAL(9,2) NOT NULL CHECK(Total_Amount > 0),
 Order_Date TIMESTAMP NOT NULL
 )
+
 ```
 
 ---

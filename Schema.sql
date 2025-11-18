@@ -1,4 +1,6 @@
 
+CREATE DATABASE "E-Commerce"  
+
 CREATE TABLE IF NOT EXISTS Category(
 Category_ID INT PRIMARY KEY,
 Category_Name VARCHAR(20) NOT NULL
