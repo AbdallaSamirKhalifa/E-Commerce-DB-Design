@@ -16,12 +16,12 @@ This project is part of a mentorship program aimed at strengthening our **techni
 
 ```
 E-Commerce-Database/
-├── README.md           # Project documentation
-|── ERD.png             # Entity Relationship Diagram
+├── README.md                     # Project documentation
+|── ERD.png                       # Entity Relationship Diagram
 |── Relational-Schema.png         # Database Schema
 └── DDL_DML/
-    |── Shcema.sql        # Database schema (CREATE statements)
-    └── Test_Data.sql     # Sample data (INSERT statements)
+    |── Shcema.sql                # Database schema (CREATE statements)
+    └── Test_Data.sql             # Sample data (INSERT statements)
 
 ```
 
