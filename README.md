@@ -73,8 +73,6 @@ These denormalizations are chosen on purpose for practical advantages in analyti
 
 <h2 align="center" id="DDL">Schema DDL</h2>
 
-<div style="max-height:100px; overflow-y:auto;">
-
 ```
 CREATE TABLE IF NOT EXISTS Category(
 Category_ID INT PRIMARY KEY,
@@ -132,4 +130,4 @@ Order_Date TIMESTAMP NOT NULL
 )
 ```
 
-</div>
+---
