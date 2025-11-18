@@ -73,7 +73,7 @@ These denormalizations are chosen on purpose for practical advantages in analyti
 
 <h2 align="center" id="DDL">Schema DDL</h2>
 
-<div style="max-height:300px; overflow-y=auto;">
+<div style="max-height:100px; overflow-y=auto;">
 
 ```
 CREATE TABLE IF NOT EXISTS Category(
