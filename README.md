@@ -36,6 +36,7 @@ E-Commerce-Database/
 - [Relational Schema](#schema)
 - [Schema DDL](#DDL)
 - [Data For Testing](#test-data)
+- [Queries](#queries)
 
 ---
 
@@ -46,6 +47,7 @@ E-Commerce-Database/
 - **Normalization**
 - **Denormalization**
 - **Schema DDL**
+- **Some queries to extract usefull data**
 - Notes and explanations on relationships and design choices.
 
 ---
@@ -175,3 +177,57 @@ All test data respects database constraints:
 📄 **View full test data**: [Test_Data.sql](./DDL_DML/Test_Data.sql)
 
 ---
+
+## query to generate a daily report of the total revenue for a specific date.
+
+```sql
+SELECT order_date ,SUM(total_amount) FROM ORDERS
+GROUP BY order_date
+HAVING order_date = Some_Date;
+```
+
+---
+
+## <h2 align="center" id="queries">Queries</h2>
+
+## SQL query to generate a monthly report of the top-selling products in a given month.
+
+```sql
+SELECT DATE_PART('MONTH', orders.order_date) AS month, Product.Name, SUM(order_details.qty) AS quantity, SUM(order_details.unit_price) AS revenue FROM product
+ JOIN order_details ON order_details.product_id = product.product_id
+ JOIN orders ON order_details.order_id = orders.order_ID
+ GROUP BY name, month
+ HAVING DATE_PART('MONTH', orders.order_date) = given_month
+ ORDER BY quantity DESC
+ LIMIT 10;
+```
+
+---
+
+## SQL query to retrieve a list of customers who have placed orders totaling more than $500 in the past month (Include customer names and their total order amounts).
+
+```sql
+SELECT customer.first_name || ' ' || customer.last_name AS name, SUM(orders.total_amount) AS total_amount FROM
+customer JOIN orders ON customer.customer_id = orders.customer_id
+GROUP BY name, DATE_PART('MONTH', orders.order_date)
+HAVING SUM(orders.total_amount) > 500 AND  DATE_PART('MONTH', orders.order_date) = DATE_PART('MONTH', CURRENT_DATE) - 1
+ORDER BY total_amount DESC;
+```
+
+### Same result but getting the benifit of denormalization we applied erlier.
+
+```sql
+SELECT customer_full_name, SUM(total_amount) total_amount FROM order_history
+GROUP BY customer_full_name, DATE_PART('MONTH', order_date)
+HAVING SUM(total_amount) > 500 AND  DATE_PART('MONTH', order_date) = DATE_PART('MONTH', CURRENT_DATE) - 1
+ORDER BY total_amount DESC;
+```
+
+---
+
+## **Contact**
+
+For questions or feedback:
+
+- GitHub: [@AbdallaSamirKhalifa](https://github.com/AbdallaSamirKhalifa)
+- Email: abdallasamirkhalifa@gmail.com
