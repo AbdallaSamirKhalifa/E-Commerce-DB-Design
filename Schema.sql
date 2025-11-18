@@ -1,0 +1,55 @@
+
+CREATE TABLE IF NOT EXISTS Category(
+Category_ID INT PRIMARY KEY,
+Category_Name VARCHAR(20) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Product(
+Product_ID INT PRIMARY KEY,
+Name VARCHAR(30) NOT NULL,
+Description VARCHAR(50) NOT NULL,
+Price DECIMAL(7,2) NOT NULL CHECK(Price > 0),
+Stock_QTY INT NOT NULL Check(Stock_QTY > 0) 
+);
+
+CREATE TABLE IF NOT EXISTS  Product_Category (
+Category_ID INT ,
+Product_ID INT ,
+PRIMARY KEY (Category_ID, Product_ID),
+FOREIGN KEY (Category_ID) REFERENCES Category ,
+FOREIGN KEY (Product_ID) REFERENCES Product
+);
+
+CREATE TABLE IF NOT EXISTS Customer(
+Customer_ID INT PRIMARY KEY,
+First_Name VARCHAR(20) NOT NULL,
+Last_Name VARCHAR(20) NOT NULL,
+Email VARCHAR(30) UNIQUE NOT NULL,
+Password VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Orders(
+Order_ID INT PRIMARY KEY,
+Order_Date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+Total_Amount DECIMAL(9,2) NOT NULL CHECK(Total_Amount > 0),
+Customer_ID INT NOT NULL,
+FOREIGN KEY (Customer_ID) REFERENCES Customer(Customer_ID)
+);
+
+CREATE TABLE IF NOT EXISTS Order_Details(
+Order_ID INT ,
+Product_ID INT ,
+QTY INT NOT NULL CHECK(QTY > 0),
+Unit_Price DECIMAL(7,2) NOT NULL CHECK(Unit_Price > 0),
+PRIMARY KEY (Order_ID, Product_ID),
+FOREIGN KEY (Order_ID) REFERENCES Orders(Order_ID),
+FOREIGN KEY (Product_ID) REFERENCES Product(Product_ID)
+);
+
+CREATE TABLE IF NOT EXISTS Order_History(
+Order_ID INT PRIMARY KEY,
+Customer_ID INT NOT NULL,
+Customer_Full_Name VARCHAR(40) NOT NULL,
+Total_Amount DECIMAL(9,2) NOT NULL CHECK(Total_Amount > 0),
+Order_Date TIMESTAMP NOT NULL
+)
