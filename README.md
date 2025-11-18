@@ -29,6 +29,7 @@ This project is part of a mentorship program aimed at strengthening our **techni
 - **Relational Schema**.
 - **Normalization**
 - **Denormalization**
+- **Schema DDL**
 - Notes and explanations on relationships and design choices.
 
 ---
