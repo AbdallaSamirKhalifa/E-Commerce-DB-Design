@@ -170,82 +170,83 @@ All test data respects database constraints:
 ## query to generate a daily report of the total revenue for a specific date.
 
 ```sql
-SELECT order_date ,SUM(total_amount) AS total_amount FROM ORDERS
+SELECT DATE(order_date) order_date ,SUM(total_amount) FROM ORDERS
 GROUP BY order_date
-HAVING order_date = '2024-11-03';
+HAVING DATE(order_date) = date;
 ```
 
 ### Smaple Output
 
-| order_date   | total_amount |
-| ------------ | ------------ |
-| '2024-11-03' | 2479.80      |
+| Order Date | Revenue |
+| ---------- | ------- |
+| 2024-11-03 | 219.96  |
+| 2024-11-03 | 479.96  |
 
 ---
 
 ## SQL query to generate a monthly report of the top-selling products in a given month.
 
 ```sql
-SELECT DATE_PART('MONTH', orders.order_date) AS month, Product.Name,
- SUM(order_details.qty) AS quantity, SUM(order_details.unit_price) AS revenue FROM product
- JOIN order_details ON order_details.product_id = product.product_id
- JOIN orders ON order_details.order_id = orders.order_ID
- GROUP BY name, month
- HAVING DATE_PART('MONTH', orders.order_date) = '11'
- ORDER BY quantity DESC
+SELECT DATE_PART('MONTH', O.order_date) AS month, P.Name, SUM(OD.qty) AS quantity, SUM(OD.unit_price) AS revenue FROM product P
+ JOIN order_details OD ON OD.product_id = P.product_id
+ JOIN orders O ON OD.order_id = O.order_ID
+ GROUP BY name,month
+ HAVING DATE_PART('MONTH', O.order_date) = '10'
+ ORDER BY revenue DESC
  LIMIT 10;
 ```
 
 ### Smaple Output
 
-| month | name             | quantity | revenue |
-| ----- | ---------------- | -------- | ------- |
-| 11    | T-Shirt          | 21       | 79.96   |
-| 11    | Yoga Mat         | 12       | 139.96  |
-| 11    | Jeans            | 7        | 99.98   |
-| 11    | Hoodie           | 7        | 119.97  |
-| 11    | Fiction Novel    | 6        | 29.98   |
-| 11    | Programming Book | 5        | 134.97  |
-| 11    | Organic Tea Set  | 5        | 59.98   |
-| 11    | Resistance Bands | 5        | 19.99   |
-| 11    | Basketball       | 4        | 49.98   |
-| 11    | Board Game       | 4        | 69.98   |
+| Month | Name                | Quantity | Revenue |
+| ----- | ------------------- | -------- | ------- |
+| 10    | Smartphone X        | 5        | 4499.95 |
+| 10    | Laptop Pro          | 3        | 3899.97 |
+| 10    | Tablet Ultra        | 3        | 1649.97 |
+| 10    | Smartwatch Pro      | 4        | 1119.96 |
+| 10    | Vacuum Robot        | 2        | 599.98  |
+| 10    | Wireless Headphones | 4        | 449.97  |
+| 10    | 4K Monitor          | 1        | 399.99  |
+| 10    | Winter Jacket       | 3        | 299.98  |
+| 10    | Mechanical Keyboard | 2        | 259.98  |
+| 10    | Coffee Maker Pro    | 3        | 239.98  |
 
 ---
 
 ## SQL query to retrieve a list of customers who have placed orders totaling more than $500 in the past month (Include customer names and their total order amounts).
 
 ```sql
-SELECT customer.first_name || ' ' || customer.last_name AS name,
- SUM(orders.total_amount) AS total_amount FROM
-customer JOIN orders ON customer.customer_id = orders.customer_id
-GROUP BY name, DATE_PART('MONTH', orders.order_date)
-HAVING SUM(orders.total_amount) > 500 AND
-  DATE_PART('MONTH', orders.order_date) = DATE_PART('MONTH', CURRENT_DATE) - 1
+
+SELECT CONCAT(C.first_name, ' ', C.last_name) AS full_name, SUM(O.total_amount) AS total_amount FROM
+customer C JOIN orders O ON C.customer_id = O.customer_id
+GROUP BY name, DATE_PART('month', O.order_date)
+HAVING SUM(O.total_amount) > 500 AND  DATE_PART('month', O.order_date) = DATE_PART('MONTH', CURRENT_DATE) - Interval
+ORDER BY total_amount DESC;
+```
+
+### Same result but getting the benifit of denormalization we applied erlier.
+
+```sql
+SELECT customer_full_name AS full_name, SUM(total_amount) total_amount FROM order_history
+GROUP BY full_name, DATE_PART('month', order_date)
+HAVING SUM(total_amount) > 500 AND  DATE_PART('month', order_date) = DATE_PART('MONTH', CURRENT_DATE) - Interval
 ORDER BY total_amount DESC;
 ```
 
 ### Smaple Output
 
-| name             | total_amount |
+| Full Name        | Total Amount |
 | ---------------- | ------------ |
-| John Smith       | 2199.96      |
-| Sarah Johnson    | 2024.93      |
-| Robert Miller    | 1624.95      |
-| Emily Brown      | 799.95       |
-| William Wilson   | 729.93       |
-| Michael Williams | 709.89       |
-| James Martinez   | 669.92       |
-
-### Same result but getting the benifit of denormalization we applied erlier.
-
-```sql
-SELECT customer_full_name, SUM(total_amount) total_amount FROM order_history
-GROUP BY customer_full_name, DATE_PART('MONTH', order_date)
-HAVING SUM(total_amount) > 500 AND
- DATE_PART('MONTH', order_date) = DATE_PART('MONTH', CURRENT_DATE) - 1
-ORDER BY total_amount DESC;
-```
+| John Smith       | 3789.94      |
+| Sarah Johnson    | 2759.79      |
+| Robert Miller    | 2394.92      |
+| Emily Brown      | 2138.92      |
+| Linda Thomas     | 1064.97      |
+| William Wilson   | 869.90       |
+| James Martinez   | 819.94       |
+| David Jones      | 774.85       |
+| Michael Williams | 679.85       |
+| Lisa Garcia      | 559.90       |
 
 ---
 
