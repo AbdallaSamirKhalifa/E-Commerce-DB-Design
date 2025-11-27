@@ -1,5 +1,5 @@
 
-CREATE DATABASE E_Commerce  
+-- CREATE DATABASE E_Commerce  
 
 CREATE TABLE IF NOT EXISTS Category(
 Category_ID INT PRIMARY KEY,
@@ -11,16 +11,11 @@ Product_ID INT PRIMARY KEY,
 Name VARCHAR(30) NOT NULL,
 Description VARCHAR(50) NOT NULL,
 Price DECIMAL(7,2) NOT NULL CHECK(Price > 0),
-Stock_QTY INT NOT NULL Check(Stock_QTY > 0) 
+Stock_QTY INT NOT NULL Check(Stock_QTY > 0),
+Category_ID INT NOT NULL,
+FOREIGN KEY (Category_ID) REFERENCES Category(Category_ID)
 );
 
-CREATE TABLE IF NOT EXISTS  Product_Category (
-Category_ID INT ,
-Product_ID INT ,
-PRIMARY KEY (Category_ID, Product_ID),
-FOREIGN KEY (Category_ID) REFERENCES Category ,
-FOREIGN KEY (Product_ID) REFERENCES Product
-);
 
 CREATE TABLE IF NOT EXISTS Customer(
 Customer_ID INT PRIMARY KEY,
@@ -56,5 +51,5 @@ Total_Amount DECIMAL(9,2) NOT NULL CHECK(Total_Amount > 0),
 Order_Date TIMESTAMP NOT NULL,
 Products JSONB
 )
------------------
+ 
 
