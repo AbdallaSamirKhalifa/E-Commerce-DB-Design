@@ -158,7 +158,6 @@ All test data respects database constraints:
 
 - ✅ Foreign key relationships
 - ✅ CHECK constraints
-- ✅ UNIQUE constraints
 - ✅ NOT NULL constraints
 
 📄 **View full test data**: [Test_Data.sql](./DDL_DML/Test_Data.sql)
@@ -170,17 +169,16 @@ All test data respects database constraints:
 ## query to generate a daily report of the total revenue for a specific date.
 
 ```sql
-SELECT DATE(order_date) order_date ,SUM(total_amount) FROM ORDERS
-GROUP BY order_date
+SELECT DATE(order_date) AS month,SUM(total_amount) revenue FROM orders
+GROUP BY month
 HAVING DATE(order_date) = date;
 ```
 
 ### Smaple Output
 
-| Order Date | Revenue |
+| month      | Revenue |
 | ---------- | ------- |
-| 2024-11-03 | 219.96  |
-| 2024-11-03 | 479.96  |
+| 2024-11-03 | 699.92  |
 
 ---
 
