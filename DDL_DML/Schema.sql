@@ -1,5 +1,5 @@
 
-CREATE DATABASE "E-Commerce"  
+CREATE DATABASE E_Commerce  
 
 CREATE TABLE IF NOT EXISTS Category(
 Category_ID INT PRIMARY KEY,
@@ -32,7 +32,7 @@ Password VARCHAR(255) NOT NULL
 
 CREATE TABLE IF NOT EXISTS Orders(
 Order_ID INT PRIMARY KEY,
-Order_Date DATE DEFAULT CURRENT_DATE,
+Order_Date TIMESTAMP DEFAULT CURRENT_DATE,
 Total_Amount DECIMAL(9,2) NOT NULL CHECK(Total_Amount > 0),
 Customer_ID INT NOT NULL,
 FOREIGN KEY (Customer_ID) REFERENCES Customer(Customer_ID)
@@ -53,5 +53,8 @@ Order_ID INT PRIMARY KEY,
 Customer_ID INT NOT NULL,
 Customer_Full_Name VARCHAR(40) NOT NULL,
 Total_Amount DECIMAL(9,2) NOT NULL CHECK(Total_Amount > 0),
-Order_Date DATE NOT NULL
+Order_Date TIMESTAMP NOT NULL,
+Products JSONB
 )
+-----------------
+
