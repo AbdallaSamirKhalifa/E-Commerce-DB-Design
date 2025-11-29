@@ -8,7 +8,7 @@ This repository includes the **database design** and **SQL implementation** for 
 
 ## **Motivation**
 
-This project is part of a mentorship program aimed at strengthening our **technical** and **interpersonal** skills to prepare for real-world market requirements.
+This project is part of a mentorship program aims to strengthening our **technical** and **interpersonal** skills to prepare for real-world market requirements.
 
 ---
 
@@ -81,10 +81,9 @@ While the design follows standard relational modeling practices, a small amount 
 
 ### Explanation:
 
-- The **Order_History** table stores customer names and total amounts directly, even though this data also exists in other tables.  
+- The **Order_History** table stores customer names ,total amounts, products informations and their subtotal directly, even though this data also exists in other tables.  
   This avoids expensive joins when generating historical order summaries, this might slower the creating new order process but it could be fixed with a **background task** or **batch task** that runs once or twice a week to avoid this problem.
 - Product pricing at the moment of purchase is copied into **Order_Details (Unit_Price)** to preserve price history, even if the product price changes later.
-- Customer name fields are duplicated in **Order_History** to keep past records consistent even if the customer updates their profile.
 
 These denormalizations are chosen on purpose for practical advantages in analytics, reporting, and historical accuracy, while keeping the overall schema clear and maintainable.
 
@@ -245,6 +244,15 @@ ORDER BY total_amount DESC;
 | David Jones      | 774.85       |
 | Michael Williams | 679.85       |
 | Lisa Garcia      | 559.90       |
+
+---
+
+## SQL query to search for all products with the word "camera" in either the product name or description.
+
+```sql
+SELECT name, Description C FROM Product
+WHERE name ILIKE  '%'|| keyword OR Description ILIKE  '%' || keyword;
+```
 
 ---
 
