@@ -255,9 +255,9 @@ WHERE name ILIKE '%' || keyword || '%'
    OR Description ILIKE '%' || keyword || '%'
 ```
 
-⚠️ **Note:** This query performs a sequential scan because the pattern starts with a wildcard (%).
-Although it works correctly, it may become slow on large tables.
-This will optimized later on.
+> ⚠️ **Note:** This query performs a sequential scan because the pattern starts with a wildcard (%).
+> Although it works correctly, it may become slow on large tables.
+> This will optimized later on.
 
 ---
 
