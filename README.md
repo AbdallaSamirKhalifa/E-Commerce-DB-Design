@@ -247,12 +247,17 @@ ORDER BY total_amount DESC;
 
 ---
 
-## SQL query to search for all products with the word "camera" in either the product name or description.
+## ## SQL query to search for all products containing a certain keyword in either the product name or description.
 
 ```sql
-SELECT name, Description C FROM Product
-WHERE name ILIKE  '%'|| keyword OR Description ILIKE  '%' || keyword;
+SELECT name, Description FROM Product
+WHERE name ILIKE '%' || keyword || '%'
+   OR Description ILIKE '%' || keyword || '%'
 ```
+
+⚠️ **Note:** This query performs a sequential scan because the pattern starts with a wildcard (%).
+Although it works correctly, it may become slow on large tables.
+This will optimized later on.
 
 ---
 
