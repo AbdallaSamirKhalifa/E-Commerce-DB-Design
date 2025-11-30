@@ -261,6 +261,20 @@ WHERE name ILIKE '%' || keyword || '%'
 
 ---
 
+## Query to suggest popular products in the same category, excluding the Purchsed products by the current customer from the recommendations.
+
+```SQL
+SELECT p.product_id, p.name, p.description, p.category_id
+FROM product p
+WHERE p.category_id = categoryID AND
+NOT EXISTS (
+      SELECT 1
+      FROM orders o
+      JOIN order_details od ON od.order_id = o.order_id
+      WHERE o.customer_id = CustomerId and od.product_id = p.product_id
+  );
+```
+
 ## **Contact**
 
 For questions or feedback:
