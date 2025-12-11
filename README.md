@@ -81,7 +81,7 @@ While the design follows standard relational modeling practices, a small amount 
 
 ### Explanation:
 
-- The **Order_History** table stores customer names ,total amounts, products informations and their subtotal directly, even though this data also exists in other tables.  
+- The **Order_History** table stores customer names ,total amounts, product informations and subtotal, even though this data also exists in other tables.  
   This avoids expensive joins when generating historical order summaries, this might slower the creating new order process but it could be fixed with a **background task** or **batch task** that runs once or twice a week to avoid this problem.
 - Product pricing at the moment of purchase is copied into **Order_Details (Unit_Price)** to preserve price history, even if the product price changes later.
 
@@ -93,7 +93,7 @@ These denormalizations are chosen on purpose for practical advantages in analyti
 
 ```sql
 
-CREATE DATABASE E_Commerce
+-- CREATE DATABASE E_Commerce
 
 CREATE TABLE IF NOT EXISTS Category(
 Category_ID INT PRIMARY KEY,
@@ -138,12 +138,21 @@ FOREIGN KEY (Product_ID) REFERENCES Product(Product_ID)
 );
 
 CREATE TABLE IF NOT EXISTS Order_History(
-Order_ID INT PRIMARY KEY,
+order_history_id  SERIAL  PRIMARY KEY,
+Order_ID INT NOT NULL,
+product_id INT NOT NULL,
 Customer_ID INT NOT NULL,
+category_id int NOT NULL ,
 Customer_Full_Name VARCHAR(40) NOT NULL,
 Total_Amount DECIMAL(9,2) NOT NULL CHECK(Total_Amount > 0),
 Order_Date TIMESTAMP NOT NULL,
-Products JSONB
+product_name VARCHAR(30) NOT NULL,
+subtotal DECIMAL(8,2) NOT NULL CHECK(subtotal > 0),
+quantity INT NOT NULL CHECK(quantity > 0),
+FOREIGN KEY (Order_id) REFERENCES orders(order_id),
+FOREIGN KEY (product_id) REFERENCES product(product_id),
+FOREIGN KEY (customer_id) REFERENCES customer(customer_id),
+FOREIGN KEY (category_id) REFERENCES category(category_id)
 )
 ```
 
@@ -170,7 +179,7 @@ All test data respects database constraints:
 ```sql
 SELECT DATE(order_date) AS month,SUM(total_amount) revenue FROM orders
 GROUP BY month
-HAVING DATE(order_date) = date;
+HAVING DATE(order_date) = <date>;
 ```
 
 ### Smaple Output
@@ -184,16 +193,15 @@ HAVING DATE(order_date) = date;
 ## SQL query to generate a monthly report of the top-selling products in a given month.
 
 ```sql
-SELECT DATE_PART('MONTH', O.order_date) AS month, P.Name, SUM(OD.qty) AS quantity, SUM(OD.unit_price) AS revenue FROM product P
- JOIN order_details OD ON OD.product_id = P.product_id
- JOIN orders O ON OD.order_id = O.order_ID
- GROUP BY name,month
- HAVING DATE_PART('MONTH', O.order_date) = '10'
+ SELECT  DATE_PART('MONTH', order_date) AS month, product_id, product_name,
+ SUM(quantity) AS quantity, SUM(subtotal) AS revenue FROM order_history
+ GROUP BY MONTH, product_id, product_name
+ HAVING DATE_PART('MONTH', order_date)=<MONTH>
  ORDER BY revenue DESC
  LIMIT 10;
 ```
 
-### Smaple Output
+### Smaple Output for October
 
 | Month | Name                | Quantity | Revenue |
 | ----- | ------------------- | -------- | ------- |
@@ -261,18 +269,14 @@ WHERE name ILIKE '%' || keyword || '%'
 
 ---
 
-## Query to suggest popular products in the same category, excluding the Purchsed products by the current customer from the recommendations.
+## Query to suggest popular products in the same category, excluding the Purchased products by the current customer from the recommendations.
 
 ```SQL
-SELECT p.product_id, p.name, p.description, p.category_id
-FROM product p
-WHERE p.category_id = categoryID AND
-NOT EXISTS (
-      SELECT 1
-      FROM orders o
-      JOIN order_details od ON od.order_id = o.order_id
-      WHERE o.customer_id = CustomerId and od.product_id = p.product_id
-  );
+SELECT product_id, name, description, category_id FROM product
+WHERE product_id NOT IN
+(SELECT Product_ID FROM order_history WHERE customer_id = <customer_id>)
+AND category_id IN
+(SELECT category_id FROM order_history WHERE customer_id = <cusotmer_ID>)
 ```
 
 ## **Contact**

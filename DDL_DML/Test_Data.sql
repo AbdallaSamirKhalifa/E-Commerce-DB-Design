@@ -283,27 +283,23 @@ INSERT INTO Order_Details (Order_ID, Product_ID, QTY, Unit_Price) VALUES
 (5079, 301, 5, 16.99), (5079, 306, 10, 12.99),
 (5080, 101, 1, 1299.99), (5080, 108, 1, 399.99), (5080, 109, 1, 129.99);
 
--- 6. Insert Order_History - DYNAMIC with JSONB Products
-INSERT INTO Order_History (Order_ID, Customer_ID, Customer_Full_Name, Total_Amount, Order_Date, Products)
+-- 6. Insert Order_History - DYNAMIC with 
+
+INSERT INTO Order_History (Order_ID, Customer_ID, Customer_Full_Name, Total_Amount, Order_Date, product_id, product_name, category_id,quantity,subtotal)
 SELECT 
     o.Order_ID,
     o.Customer_ID,
     CONCAT(c.First_Name, ' ', c.Last_Name) AS Customer_Full_Name,
     o.Total_Amount,
     o.Order_Date,
-    (
-        SELECT jsonb_agg(
-            jsonb_build_object(
-                'product_id', od.Product_ID,
-                'product_name', p.Name,
-                'quantity', od.QTY,
-                'unit_price', od.Unit_Price,
-                'subtotal', od.QTY * od.Unit_Price
-            )
-        )
-        FROM Order_Details od
-        INNER JOIN Product p ON od.Product_ID = p.Product_ID
-        WHERE od.Order_ID = o.Order_ID
-    ) AS Products
-FROM Orders o
-INNER JOIN Customer c ON o.Customer_ID = c.Customer_ID;
+    p.product_id,
+	p.name,
+	p.category_id,
+	od.qty as quantity,
+	od.qty * od.unit_price as subtotal
+FROM customer c
+JOIN orders o ON o.Customer_ID = c.Customer_ID
+JOIN Order_Details od on od.order_id=o.Order_ID
+JOIN Product p ON od.Product_ID = p.Product_ID
+ 
+

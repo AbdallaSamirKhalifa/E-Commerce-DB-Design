@@ -43,13 +43,23 @@ FOREIGN KEY (Order_ID) REFERENCES Orders(Order_ID),
 FOREIGN KEY (Product_ID) REFERENCES Product(Product_ID)
 );
 
+
 CREATE TABLE IF NOT EXISTS Order_History(
-Order_ID INT PRIMARY KEY,
+order_history_id  SERIAL  PRIMARY KEY,
+Order_ID INT NOT NULL,
+product_id INT NOT NULL,
 Customer_ID INT NOT NULL,
+category_id int NOT NULL ,
 Customer_Full_Name VARCHAR(40) NOT NULL,
 Total_Amount DECIMAL(9,2) NOT NULL CHECK(Total_Amount > 0),
 Order_Date TIMESTAMP NOT NULL,
-Products JSONB
+product_name VARCHAR(30) NOT NULL,
+subtotal DECIMAL(8,2) NOT NULL CHECK(subtotal > 0),
+quantity INT NOT NULL CHECK(quantity > 0),
+FOREIGN KEY (Order_id) REFERENCES orders(order_id),
+FOREIGN KEY (product_id) REFERENCES product(product_id),
+FOREIGN KEY (customer_id) REFERENCES customer(customer_id),
+FOREIGN KEY (category_id) REFERENCES category(category_id)
 )
  
 
