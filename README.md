@@ -379,6 +379,26 @@ EXECUTE FUNCTION FN_UPDATE_ORDER_HISTORY_TOTAL_AFTER_ORDER_UPDATE();
 
 ---
 
+## Transaction query to lock the field quantity for a gevin product_id from being updated.
+
+```sql
+BEGIN;
+SELECT product_id FROM product WHERE product_id= <product_id> FOR UPDATE;
+COMMIT;
+```
+
+---
+
+## Transaction query to lock row for a gevin product_id from being updated.
+
+```sql
+BEGIN;
+SELECT * FROM product WHERE product_id= <product_id> FOR UPDATE;
+COMMIT;
+```
+
+---
+
 ## **Contact**
 
 For questions or feedback:
