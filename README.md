@@ -255,7 +255,7 @@ ORDER BY total_amount DESC;
 
 ---
 
-## ## SQL query to search for all products containing a certain keyword in either the product name or description.
+## SQL query to search for all products containing a certain keyword in either the product name or description.
 
 ```sql
 SELECT name, Description FROM Product
@@ -266,6 +266,23 @@ WHERE name ILIKE '%' || keyword || '%'
 > ⚠️ **Note:** This query performs a sequential scan because the pattern starts with a wildcard (%).
 > Although it works correctly, it may become slow on large tables.
 > This will optimized later on.
+
+### Alternative way of searching for keyword in POSTGRESQL
+
+```sql
+ALTER TABLE PRODUCT ADD COLUMN SEARCH_VECTOR TSVECTOR
+GENERATED ALWAYS AS (TO_TSVECTOR('english', name||' '||description)) stored;
+
+CREATE INDEX IDX_FULL_TEXT_SEARCH ON PRODUCT USING GIN (SEARCH_VECTOR);
+
+EXPLAIN ANALYSE
+SELECT product_id, name, description FROM PRODUCT WHERE SEARCH_VECTOR @@ TO_TSQUERY('fit');
+
+```
+
+- Creating a column combines the fields we need to search in.
+- Creating a **GIN** (Generated Inverted Index) which is the most prefered for **Full Text Search**.
+- > We might create an index over the **ts_vector** expression but for this way we must use the same expression to search for text, however, denormalization could be beneficial sometimes.
 
 ---
 
@@ -278,6 +295,8 @@ WHERE product_id NOT IN
 AND category_id IN
 (SELECT category_id FROM order_history WHERE customer_id = <cusotmer_ID>)
 ```
+
+---
 
 ## Procedure with transaction to create new order.
 
