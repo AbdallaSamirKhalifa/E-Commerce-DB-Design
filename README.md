@@ -510,18 +510,33 @@ SELECT COUNT(*) FROM userInfo WHERE name = <name> AND status_id = <status_id>;
 ### 2. Benchmark results after creating separate indexes on (name state_id) columns.
 
 | TOTAL QUERIES | TOTAL_TIME_SECONDS | QUERIES_PER_SECOND |
-| 300 | 0.066881 | 4485.5788639523935 |
+| ------------- | ------------------ | ------------------ |
+| 300           | 0.066881           | 4485.5788639523935 |
 
 #### Query Analyses results
 
-- -> Aggregate: count(0) (cost=5.37 rows=1) (actual time=0.135..0.135 rows=1 loops=1)
--     -> Filter: ((userInfo.state_id = 100) and (userInfo.`name` = 'Jhon100'))
--           (cost=5.27 rows=1) (actual time=0.0414..0.13 rows=100 loops=1)
--         -> Intersect rows sorted by row ID  (cost=5.27 rows=1) (actual time=0.0398..0.114 rows=100 loops=1)
--             -> Index range scan on userInfo using idx_name over (name = 'Jhon100')
--                   (cost=4.09 rows=100) (actual time=0.0198..0.06 rows=100 loops=1)
--             -> Index range scan on userInfo using idx_state_id over (state_id = 100)
--                   (cost=1.07 rows=100) (actual time=0.0189..0.0448 rows=100 loops=1)
+    -> Aggregate: count(0)
+    (cost=5.37 rows=1)
+    (actual time=0.135..0.135 rows=1 loops=1)
+
+        -> Filter: ((userInfo.state_id = 100)
+                    AND (userInfo.name = 'Jhon100'))
+          (cost=5.27 rows=1)
+          (actual time=0.0414..0.13 rows=100 loops=1)
+
+            -> Intersect rows sorted by row ID
+              (cost=5.27 rows=1)
+              (actual time=0.0398..0.114 rows=100 loops=1)
+
+                -> Index range scan on userInfo
+                  using idx_name over (name = 'Jhon100')
+                  (cost=4.09 rows=100)
+                  (actual time=0.0198..0.06 rows=100 loops=1)
+
+                -> Index range scan on userInfo
+                  using idx_state_id over (state_id = 100)
+                  (cost=1.07 rows=100)
+                  (actual time=0.0189..0.0448 rows=100 loops=1)
 
 #### The problem of having two separate index makes the database (MERGE INDEXES)
 
@@ -536,13 +551,21 @@ SELECT COUNT(*) FROM userInfo WHERE name = <name> AND status_id = <status_id>;
 ### 3. Benchmark results after creating composite indexes on (name, state_id) The best choice.
 
 | TOTAL QUERIES | TOTAL_TIME_SECONDS | QUERIES_PER_SECOND |
-| 300 | 0.03046 | 9848.98227183191 |
+| ------------- | ------------------ | ------------------ |
+| 300           | 0.03046            | 9848.98227183191   |
 
 #### Query Analyses results
 
-- -> Aggregate: count(0) (cost=24.1 rows=1) (actual time=0.051..0.0511 rows=1 loops=1)
--       -> Covering index lookup on userInfo using name_state_id_idx (name='Jhon100', state_id=100)
--             (cost=14.1 rows=100) (actual time=0.0156..0.0459 rows=100 loops=1)
+    -> Aggregate: count(0)
+    (cost=24.1 rows=1)
+    (actual time=0.051..0.0511 rows=1 loops=1)
+
+        -> Covering index lookup on userInfo
+          using name_state_id_idx
+          (name = 'Jhon100', state_id = 100)
+          (cost=14.1 rows=100)
+          (actual time=0.0156..0.0459 rows=100 loops=1)
+
 - The queries per second is doubled -> this is half the operations done by the (MERGE INDEX) plan and the number of rows are estimated correctly.
 
 ---
