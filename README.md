@@ -418,6 +418,135 @@ COMMIT;
 
 ---
 
+## MYSQL Query optimization
+
+### Practice table
+
+```sql
+create table userInfo
+(
+    id              int unsigned auto_increment
+        primary key,
+    name            varchar(64)       default ''  not null,
+    email           varchar(64)       default ''  not null,
+    password        varchar(64)       default ''  not null,
+    dob             date                          null,
+    address         varchar(255)      default ''  not null,
+    city            varchar(64)       default ''  not null,
+    state_id        smallint unsigned default 0 not null,
+    zip             varchar(8)        default ''  not null,
+    country_id      smallint unsigned default 0 not null,
+    account_type    varchar(32)       default ''  not null,
+    closest_airport varchar(3)        default ''  not null,
+    constraint email
+        unique (email)
+);
+
+```
+
+- Populating the table with more than 6M record for testing.
+
+### Benchmark procedure for testing
+
+```sql
+ DELIMITER $$
+ CREATE PROCEDURE benchmark_userinfo()
+ BEGIN
+     DECLARE i INT DEFAULT 0;
+     DECLARE nb_of_requests INT DEFAULT 300;
+     DECLARE start_time DATETIME(6);
+     DECLARE end_time DATETIME(6);
+     DECLARE total_seconds DOUBLE;
+     DECLARE qps DOUBLE;
+     DECLARE RESULT BIGINT;
+
+
+     -- Start timer
+     SET start_time = NOW(6);
+
+     WHILE i < nb_of_requests DO
+         SELECT COUNT(*) INTO RESULT
+         FROM userInfo
+         WHERE `name` = 'Jhon100'
+           AND `state_id` = 100;
+
+         SET i = i + 1;
+     END WHILE;
+
+     -- End timer
+     SET end_time = NOW(6);
+
+     -- Time in seconds
+     SET total_seconds =
+         TIMESTAMPDIFF(MICROSECOND, start_time, end_time) / 1000000;
+
+     -- QPS
+     SET qps = nb_of_requests / total_seconds;
+
+     -- Output
+     SELECT
+         nb_of_requests AS total_queries,
+         total_seconds AS total_time_seconds,
+         qps AS queries_per_second;
+ END$$
+ DELIMITER ;
+```
+
+- This benchmark procedure runs 300 times and calculates the (start time, end time, query per secon);
+
+#### The Query
+
+```sql
+SELECT COUNT(*) FROM userInfo WHERE name = <name> AND status_id = <status_id>;
+```
+
+### 1. Benchmark results without index
+
+| TOTAL QUERIES | TOTAL_TIME_SECONDS | QUERIES_PER_SECOND |
+| 300 | 626.176728 | 0.47909797120406555 |
+
+- This is a full table sequence scan which is catastrophic, it's obvious no need for the execution plan
+
+### 2. Benchmark results after creating separate indexes on (name state_id) columns.
+
+| TOTAL QUERIES | TOTAL_TIME_SECONDS | QUERIES_PER_SECOND |
+| 300 | 0.066881 | 4485.5788639523935 |
+
+#### Query Analyses results
+
+- -> Aggregate: count(0) (cost=5.37 rows=1) (actual time=0.135..0.135 rows=1 loops=1)
+-     -> Filter: ((userInfo.state_id = 100) and (userInfo.`name` = 'Jhon100'))
+-           (cost=5.27 rows=1) (actual time=0.0414..0.13 rows=100 loops=1)
+-         -> Intersect rows sorted by row ID  (cost=5.27 rows=1) (actual time=0.0398..0.114 rows=100 loops=1)
+-             -> Index range scan on userInfo using idx_name over (name = 'Jhon100')
+-                   (cost=4.09 rows=100) (actual time=0.0198..0.06 rows=100 loops=1)
+-             -> Index range scan on userInfo using idx_state_id over (state_id = 100)
+-                   (cost=1.07 rows=100) (actual time=0.0189..0.0448 rows=100 loops=1)
+
+#### The problem of having two separate index makes the database (MERGE INDEXES)
+
+1- Scan the first index.
+2- Scan the second index.
+3- Sort both results by id.
+4- Intersect the results based on id.
+
+- NOTE: in the intersect operation the number of rows is not estimated correctly which also a problem.
+  5- Filter the resalts again.
+
+### 3. Benchmark results after creating composite indexes on (name, state_id) The best choice.
+
+| TOTAL QUERIES | TOTAL_TIME_SECONDS | QUERIES_PER_SECOND |
+| 300 | 0.03046 | 9848.98227183191 |
+
+#### Query Analyses results
+
+- -> Aggregate: count(0) (cost=24.1 rows=1) (actual time=0.051..0.0511 rows=1 loops=1)
+-       -> Covering index lookup on userInfo using name_state_id_idx (name='Jhon100', state_id=100)
+-             (cost=14.1 rows=100) (actual time=0.0156..0.0459 rows=100 loops=1)
+- The queries per second is doubled -> this is half the operations done by the (MERGE INDEX) plan and the number of rows are estimated correctly.
+
+---
+
 ## **Contact**
 
 For questions or feedback:
