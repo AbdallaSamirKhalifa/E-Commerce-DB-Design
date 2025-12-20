@@ -570,6 +570,79 @@ SELECT COUNT(*) FROM userInfo WHERE name = <name> AND status_id = <status_id>;
 
 ---
 
+## Index Performance
+
+- Reduce the rows examined
+  - Creating index can intensively reduce the number of rows scanned by **WHERE** or **JOIN**.
+- Sorting Data
+  - BTree indexes can read the data in the order the query needs
+    - Assuming we have this query
+    ```sql
+      SELECT * FROM userInfo ORDER BY state_id DESC LIMIT 10;
+    ```
+    - Without the index this will be a full table scan then sorts the result and get the records we want.
+    - But with index it will just read the records in reverse order.
+- Validating Data (Adding unique index).
+- Avoid reading rows using covering indexes.
+- Getting the **MIN** and **MAX** values by only checking the first and last records in the index.
+
+## When to add or remove an index
+
+### IN MYSQL we have two main views to find statistics with full table scan
+
+```sql
+-- The first view is
+-- Schema tables with full table scans: Shows the rows that a query executed with full table scan
+SELECT * FROM schema_tables_with_full_table_scans;
+
+-- The second view
+-- Statements with full table scans: Show the statements executed with full table table scan (ordered by the time of execution)
+SELECT * FROM statements_with_full_table_scans;
+
+```
+
+- They give you a good insight on wheather you need to create new index or not.
+
+### When should we remove an index
+
+- We have two schemas that might help us to make a decision
+
+```sql
+-- The first one is
+-- schema unused indexes: Show the indexes that are no longer used or never used at all.
+SELECT * FROM schema_unused_indexes;
+
+-- The second one is
+-- schema redundant indexes: Shows the redundant indexes
+SELECT * FROM schema_redundant_indexes;
+```
+
+### Rdundant Indexs
+
+- Let assume we have an index on cols (name, email)
+- Another index on (email) **_not the same_** **_not redundant_**
+- Another on (email, name) **_not the same_** **_not redundant_**
+- Having indexes from different type such as (hash, full text) are **_not redundant_**
+- Having index (name, id PK) it is the same since the PK index is already appended to any secondary index leaf nood.
+  - They might be beneficial in **ORDER BY** clauses.
+- Another on (name) **_same_** **_redundant_**
+  - In some cases it might make sense to keep it that way.
+  - It depends on how frequent we use the index and the number of times the data of the table will be changed.
+
+### Index Statistics
+
+> Secondary indexes are not in the same order such as the data.
+
+- When we use a secondary index for searching means there will be extra primary key lookup to reach the data witch means a random I/O.
+  - InnoDB calculates index statistics by randomly analyze the leaf pages which is scaled based on the index total size
+  - The more pages it analyze the more accurate statistics we get but also the higher the cost
+    > **NOTE**: The more pages we add the more index analysis time we get (which run when more than 10% of the data changed)
+- The number of sample pages could be changed using
+
+```sql
+ALTER TABLE table_name stats_smaple_pages = <number_of_pages>;
+```
+
 ## **Contact**
 
 For questions or feedback:
