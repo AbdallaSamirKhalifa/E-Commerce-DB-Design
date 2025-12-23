@@ -279,10 +279,12 @@ INSERT INTO Order_Details (Order_ID, Product_ID, QTY, Unit_Price) VALUES
 (5080, 101, 1, 1299.99), (5080, 108, 1, 399.99), (5080, 109, 1, 129.99);
 
 -- 6. Insert Order_History - DYNAMIC with
--- Important to make the customer and orders tables generate new key (instead or altering all the old data)
+-- Important to make tables generate new key (instead or altering all the old data)
 
 SELECT SETVAL(PG_GET_SERIAL_SEQUENCE('CUSTOMER','customer_id'),COALESCE((SELECT MAX(CUSTOMER_ID) FROM CUSTOMER),0));
-SELECT SETVAL(PG_GET_SERIAL_SEQUENCE('Orders','order_id'),COALESCE((SELECT MAX(Order_id) FROM Orders),0));
+SELECT SETVAL(PG_GET_SERIAL_SEQUENCE('orders','order_id'),COALESCE((SELECT MAX(order_id) FROM orders),0));
+SELECT SETVAL(PG_GET_SERIAL_SEQUENCE('product','product_id'),COALESCE((SELECT MAX(product_id) FROM product),0));
+SELECT SETVAL(PG_GET_SERIAL_SEQUENCE('category','category_id'),COALESCE((SELECT MAX(category_id) FROM category),0));
 
 -- Inserting data into order_history's table.
 INSERT INTO Order_History (Order_ID, Customer_ID, Customer_Full_Name, Total_Amount, Order_Date, product_id, product_name, category_id,quantity,subtotal)
