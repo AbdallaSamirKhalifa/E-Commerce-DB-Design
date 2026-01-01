@@ -418,6 +418,104 @@ COMMIT;
 
 ---
 
+## POSTGRESQL Performance Tuning
+
+### SQL Query to Retrieve the total number of products in each category.
+
+```sql
+ EXPLAIN ANALYZE
+    SELECT category.category_name FROM category JOIN (
+SELECT category_id, count(1) FROM product
+GROUP BY category_id) E ON category.category_id=E.category_id;
+
+```
+
+> Using the subquery to minimize the number of rows that will be joined as demonstraited in the plan the join is the last operation
+> means that we only joining the desired ouput no elemenations after the hashing.
+
+#### Initial Execution Plan
+
+    Hash Join  (cost=107078.94..109349.37 rows=100000 width=14) (actual time=541.430..574.992 rows=99900.00 loops=1)
+      Hash Cond: (product.category_id = category.category_id)
+      Buffers: shared hit=2209 read=49914
+      ->  Finalize HashAggregate  (cost=104191.94..105195.44 rows=100350 width=12) (actual time=480.164..491.945 rows=99900.00 loops=1)
+            Group Key: product.category_id
+            Batches: 1  Memory Usage: 6681kB
+            Buffers: shared hit=1572 read=49914
+            ->  Gather  (cost=78502.34..103589.84 rows=240840 width=4) (actual time=406.953..432.692 rows=299700.00 loops=1)
+                  Workers Planned: 2
+                  Workers Launched: 2
+                  Buffers: shared hit=1572 read=49914
+                  ->  Partial HashAggregate  (cost=77502.34..78505.84 rows=100350 width=4) (actual time=392.141..401.784 rows=99900.00 loops=3)
+                        Group Key: product.category_id
+                        Batches: 1  Memory Usage: 4633kB
+                        Buffers: shared hit=1572 read=49914
+                        Worker 0:  Batches: 1  Memory Usage: 6681kB
+                        Worker 1:  Batches: 1  Memory Usage: 4633kB
+                        ->  Parallel Seq Scan on product  (cost=0.00..72299.07 rows=2081307 width=4) (actual time=0.108..88.496 rows=1665000.00 loops=3)
+                              Buffers: shared hit=1572 read=49914
+      ->  Hash  (cost=1637.00..1637.00 rows=100000 width=18) (actual time=61.148..61.148 rows=100000.00 loops=1)
+            Buckets: 131072  Batches: 1  Memory Usage: 6102kB
+            Buffers: shared hit=637
+            ->  Seq Scan on category  (cost=0.00..1637.00 rows=100000 width=18) (actual time=30.169..39.480 rows=100000.00 loops=1)
+                  Buffers: shared hit=637
+    Planning Time: 0.349 ms
+    JIT:
+      Functions: 39
+      Options: Inlining false, Optimization false, Expressions true, Deforming true
+      Timing: Generation 3.722 ms (Deform 1.601 ms), Inlining 0.000 ms, Optimization 1.763 ms, Emission 38.017 ms, Total 43.502 ms
+    Execution Time: 582.141 ms
+    (30 rows)
+
+[Visual Tree representation for the plan](https://explain.dalibo.com/plan/cecg6ea5883f6bfg)
+
+- Since **_POSTGRES_** do not automatically create foreign key index, the optimizer choose to go ahead with sequentianl scan (full table scan) on products.
+
+#### And here it is
+
+```sql
+CREATE INDEX idx_product_category_id ON product(category_id);
+ANALYZE product;
+```
+
+    Hash Join  (cost=97982.96..99882.47 rows=98934 width=14) (actual time=229.386..250.224 rows=99900.00 loops=1)
+      Hash Cond: (category.category_id = e.category_id)
+      Buffers: shared hit=204783
+      ->  Seq Scan on category  (cost=0.00..1637.00 rows=100000 width=18) (actual time=0.027..4.906 rows=100000.00 loops=1)
+            Buffers: shared hit=637
+      ->  Hash  (cost=96746.28..96746.28 rows=98934 width=4) (actual time=229.200..229.274 rows=99900.00 loops=1)
+            Buckets: 131072  Batches: 1  Memory Usage: 4537kB
+            Buffers: shared hit=204146
+            ->  Subquery Scan on e  (cost=94767.60..96746.28 rows=98934 width=4) (actual time=204.716..219.670 rows=99900.00 loops=1)
+                  Buffers: shared hit=204146
+                  ->  Finalize HashAggregate  (cost=94767.60..95756.94 rows=98934 width=12) (actual time=204.715..214.231 rows=99900.00 loops=1)
+                        Group Key: product.category_id
+                        Batches: 1  Memory Usage: 6681kB
+                        Buffers: shared hit=204146
+                        ->  Gather  (cost=1000.43..94174.00 rows=237442 width=4) (actual time=0.670..186.933 rows=99900.00 loops=1)
+                              Workers Planned: 2
+                              Workers Launched: 2
+                              Buffers: shared hit=204146
+                              ->  Partial GroupAggregate  (cost=0.43..69429.80 rows=98934 width=4) (actual time=0.067..181.687 rows=33300.00 loops=3)
+                                    Group Key: product.category_id
+                                    Buffers: shared hit=204146
+                                    ->  Parallel Index Only Scan using idx_product_category_id on product  (cost=0.43..63237.19 rows=2081307 width=4) (actual time=0.043..100.594 rows=1665000.00 loops=3)
+                                          Heap Fetches: 0
+                                          Index Searches: 1
+                                          Buffers: shared hit=204146
+    Planning:
+      Buffers: shared hit=38
+    Planning Time: 0.692 ms
+    Execution Time: 253.437 ms
+    (29 rows)
+
+[Visual Tree representation for the plan](https://explain.dalibo.com/plan/caba29403h0e8d70)
+
+- The total time is less than half the time without the index
+- As we can see the optimizer choose to go with group aggregate
+  - Since it does index scan the data is sorted, best suited for group aggregate (Much more effecient than hash aggregate) since we are passing the hashing cost here
+    means less time and less memory (memory buckets).
+
 ## MYSQL Query optimization
 
 ### Practice table
@@ -649,3 +747,4 @@ For questions or feedback:
 
 - GitHub: [@AbdallaSamirKhalifa](https://github.com/AbdallaSamirKhalifa)
 - Email: abdallasamirkhalifa@gmail.com
+- Linkedin: [Abdalla Khalifa](linkedin.com/in/abdalla-khalifa)

@@ -60,7 +60,7 @@ FOREIGN KEY (Order_id) REFERENCES orders(order_id),
 FOREIGN KEY (product_id) REFERENCES product(product_id),
 FOREIGN KEY (customer_id) REFERENCES customer(customer_id),
 FOREIGN KEY (category_id) REFERENCES category(category_id)
-)
+);
  
 
 SELECT * FROM Orders
