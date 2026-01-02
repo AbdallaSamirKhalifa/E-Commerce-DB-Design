@@ -565,10 +565,11 @@ EXPLAIN ANALYZE
       Timing: Generation 1.879 ms (Deform 0.824 ms), Inlining 0.000 ms, Optimization 1.327 ms, Emission 9.052 ms, Total 12.258 ms
     Execution Time: 613.422 ms
 
-- Since There is no index on the Order date the there will be over head sorting the orders by date.
-  [Visual Tree representation for the plan](https://explain.dalibo.com/plan/44a143d8a0a4d58c)
+[Visual Tree representation for the plan](https://explain.dalibo.com/plan/44a143d8a0a4d58c)
 
-##### After Optimization
+- Since There is no index on the Order date the there will be over head sorting the orders by date.
+
+#### After Optimization
 
 - Creating index on orders(customer_id) Customer's Foreign key in the orders table.
 - Creating index on orders(order_date) **means the data will be sorted which means the engine will scan the index Backward**.
@@ -612,6 +613,63 @@ ANALYZE orders;
   - We eleminated (parallel sequence scan, sorting,merging the work make by two workers)
   - We also reduced (CPU usage, disk access, memory usage).
 - Reduced the execution time more than 500 MS.
+
+### SQL Query to List products with stock quantity of less than 10.
+
+```sql
+EXPLAIN ANALYZE
+ SELECT product_id, name FROM product WHERE stock_quantity < 10;
+
+```
+
+#### Initial execution plan
+
+    Gather  (cost=1000.00..87339.06 rows=88369 width=19) (actual time=0.523..107.144 rows=90000.00 loops=1)
+      Workers Planned: 2
+      Workers Launched: 2
+      Buffers: shared hit=2419 read=49067
+      ->  Parallel Seq Scan on product  (cost=0.00..77502.16 rows=36820 width=19) (actual time=0.073..99.558 rows=30000.00 loops=3)
+            Filter: (stock_quantity < 10)
+            Rows Removed by Filter: 1635000
+            Buffers: shared hit=2419 read=49067
+    Planning:
+      Buffers: shared hit=73
+    Planning Time: 1.441 ms
+    Execution Time: 110.202 ms
+
+[Visual Tree representation for the plan](https://explain.dalibo.com/plan/fc26c34365gdfb45)
+
+- Paraller sequential scan (scans the full table -> huge wast of resources)
+  - CPU usage, heavy IO and disk access.
+
+#### After optimization
+
+- Creating index on product's stock quantity.
+
+```sql
+CREATE INDEX IDX_STOCK ON product(stock_quantity);
+ANALYZE product;
+```
+
+    Bitmap Heap Scan on product  (cost=899.58..55662.37 rows=80406 width=19) (actual time=10.063..23.774 rows=90000.00 loops=1)
+      Recheck Cond: (stock_quantity < 10)
+      Heap Blocks: exact=10824
+      Buffers: shared hit=10902
+      ->  Bitmap Index Scan on idx_stock  (cost=0.00..879.48 rows=80406 width=0) (actual time=8.663..8.663 rows=90000.00 loops=1)
+            Index Cond: (stock_quantity < 10)
+            Index Searches: 1
+            Buffers: shared hit=78
+    Planning Time: 0.146 ms
+    Execution Time: 26.551 ms
+
+[Visual Tree representation for the plan](https://explain.dalibo.com/plan/54e63gh45863e684)
+
+#### Final Conclusion
+
+- Reducing Execution time to 26 MS instead of 110 MS.
+- Bimap index scan (Scans only the needed results no wasted work).
+- Elemenating (parallel sequential scan).
+- Reducing (Disk access and heavy IO)
 
 ## MYSQL Query optimization
 
