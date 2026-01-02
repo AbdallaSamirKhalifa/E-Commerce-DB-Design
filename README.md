@@ -876,6 +876,98 @@ ANALYZE orders;
 
 - In this type of queries since we have milion of rows to be aggregated the covering indecies might help but not always will. In query 4.1 and 4.2 we aggregating over melion of rows in 4.1 the order_details table contains 50M row and 4.2 table orders contains 10M (reading the full data is inevitable) wich is huge, this kind of problems could be avoided with denormalization, in our situation here we can create total_spending column in customer table and total_revenue column in the category tabel which will be updated with triggers each time new order or order item is added but then we will sacrifice the write performance in these tables, so we might go with backgroud jobs, how ever this is not nessecary with this type of queries. Since they migth be executed once a month or week or even once a day, we can live with this performance in this case since it could be the optimal solution.
 
+### Old queries optimization
+
+#### 1- SQL query to retrieve a list of customers who have placed orders totaling more than $500 in the past month (Include customer names and their total order amounts).
+
+##### Old query
+
+```sql
+SELECT C.first_name , C.last_name, SUM(O.total_amount) AS total_amount FROM
+customer C JOIN orders O ON C.customer_id = O.customer_id
+where O.order_date = CURRENT_DATE - Interval '1 month'
+GROUP BY C.first_name, C.last_name
+HAVING SUM(O.total_amount) ;
+```
+
+###### Execution Plan
+
+    GroupAggregate  (cost=28150.66..28720.14 rows=1366 width=57) (actual time=47.451..53.822 rows=2013.00 loops=1)
+      Group Key: c.first_name, c.last_name
+      Filter: (sum(o.total_amount) > '500'::numeric)
+      Rows Removed by Filter: 2111
+      Buffers: shared hit=20426
+      ->  Gather Merge  (cost=28150.66..28627.94 rows=4098 width=30) (actual time=47.433..51.086 rows=4127.00 loops=1)
+            Workers Planned: 2
+            Workers Launched: 2
+            Buffers: shared hit=20426
+            ->  Sort  (cost=27150.63..27154.90 rows=1708 width=30) (actual time=32.978..33.072 rows=1375.67 loops=3)
+                  Sort Key: c.first_name, c.last_name
+                  Sort Method: quicksort  Memory: 218kB
+                  Buffers: shared hit=20426
+                  Worker 0:  Sort Method: quicksort  Memory: 58kB
+                  Worker 1:  Sort Method: quicksort  Memory: 63kB
+                  ->  Nested Loop  (cost=48.63..27058.93 rows=1708 width=30) (actual time=2.370..25.538 rows=1375.67 loops=3)
+                        Buffers: shared hit=20410
+                        ->  Parallel Bitmap Heap Scan on orders o  (cost=48.20..13718.32 rows=1708 width=9) (actual time=2.305..7.720 rows=1375.67 loops=3)
+                              Recheck Cond: (order_date = (CURRENT_DATE - '1 mon'::interval))
+                              Heap Blocks: exact=2424
+                              Buffers: shared hit=3900
+                              Worker 0:  Heap Blocks: exact=669
+                              Worker 1:  Heap Blocks: exact=761
+                              ->  Bitmap Index Scan on idx_order_date  (cost=0.00..47.17 rows=4098 width=0) (actual time=3.953..3.953 rows=4127.00 loops=1)
+                                    Index Cond: (order_date = (CURRENT_DATE - '1 mon'::interval))
+                                    Index Searches: 1
+                                    Buffers: shared hit=6
+                        ->  Index Scan using customer_pkey on customer c  (cost=0.43..7.81 rows=1 width=29) (actual time=0.012..0.012 rows=1.00 loops=4127)
+                              Index Cond: (customer_id = o.customer_id)
+                              Index Searches: 4127
+                              Buffers: shared hit=16510
+    Planning:
+      Buffers: shared hit=18
+    Planning Time: 0.800 ms
+    Execution Time: 53.992 ms
+
+##### New query
+
+```sql
+select c.first_name, c.last_name, top_customers.total from customer c join
+(select customer_id, sum(total_amount) total from orders
+where order_id in
+(select order_id from orders
+where order_date= current_date - interval '1 month')
+group by customer_id
+having sum(total_amount) > 500) top_customers on c.customer_id=top_customers.customer_id;
+
+```
+
+###### Execution Plan
+
+    Nested Loop  (cost=13781.07..25077.97 rows=1365 width=57) (actual time=5.107..11.363 rows=2013.00 loops=1)
+      Buffers: shared hit=11912
+      ->  HashAggregate  (cost=13780.64..13842.07 rows=1365 width=36) (actual time=5.092..6.397 rows=2013.00 loops=1)
+            Group Key: orders.customer_id
+            Filter: (sum(orders.total_amount) > '500'::numeric)
+            Batches: 1  Memory Usage: 1681kB
+            Rows Removed by Filter: 2111
+            Buffers: shared hit=3860
+            ->  Bitmap Heap Scan on orders  (cost=48.20..13760.15 rows=4098 width=9) (actual time=0.705..3.513 rows=4127.00 loops=1)
+                  Recheck Cond: (order_date = (CURRENT_DATE - '1 mon'::interval))
+                  Heap Blocks: exact=3854
+                  Buffers: shared hit=3860
+                  ->  Bitmap Index Scan on idx_order_date  (cost=0.00..47.17 rows=4098 width=0) (actual time=0.290..0.290 rows=4127.00 loops=1)
+                        Index Cond: (order_date = (CURRENT_DATE - '1 mon'::interval))
+                        Index Searches: 1
+                        Buffers: shared hit=6
+      ->  Index Scan using customer_pkey on customer c  (cost=0.43..8.22 rows=1 width=29) (actual time=0.002..0.002 rows=1.00 loops=2013)
+            Index Cond: (customer_id = orders.customer_id)
+            Index Searches: 2013
+            Buffers: shared hit=8052
+    Planning Time: 0.192 ms
+    Execution Time: 11.534 ms
+
+- Each time the input is smaller which made the final output small to be the input for the join operation.
+
 ## MYSQL Query optimization
 
 ### Practice table
