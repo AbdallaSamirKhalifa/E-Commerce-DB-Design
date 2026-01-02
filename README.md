@@ -471,7 +471,9 @@ GROUP BY category_id) E ON category.category_id=E.category_id;
 
 - Since **_POSTGRES_** do not automatically create foreign key index, the optimizer choose to go ahead with sequentianl scan (full table scan) on products.
 
-#### And here it is
+#### After Optimizatino
+
+- Creating index on Product(Category_id) the category id foreign key in the products table
 
 ```sql
 CREATE INDEX idx_product_category_id ON product(category_id);
@@ -515,6 +517,101 @@ ANALYZE product;
 - As we can see the optimizer choose to go with group aggregate
   - Since it does index scan the data is sorted, best suited for group aggregate (Much more effecient than hash aggregate) since we are passing the hashing cost here
     means less time and less memory (memory buckets).
+
+### SQL Query to Retrieve the most recent 1000 orders orders with customer information.
+
+```sql
+EXPLAIN ANALYZE
+    SELECT c.customer_id, c.first_name, c.last_name, order_date  FROM customer c JOIN (
+        SELECT o.customer_id, o.order_date FROM orders o
+                                           ORDER BY order_date DESC LIMIT 1000
+    ) o ON c.customer_id = o.customer_id;
+
+```
+
+#### Initial Execution Plan (Query is optimized but the performace is not optimal)
+
+    Nested Loop  (cost=368009.37..370253.65 rows=1000 width=33) (actual time=579.044..611.587 rows=1000.00 loops=1)
+      Buffers: shared hit=6389 read=96917
+      ->  Limit  (cost=368008.93..368125.39 rows=1000 width=8) (actual time=579.002..579.308 rows=1000.00 loops=1)
+            Buffers: shared hit=2822 read=96484
+            ->  Gather Merge  (cost=368008.93..1522577.59 rows=9913313 width=8) (actual time=573.226..573.471 rows=1000.00 loops=1)
+                  Workers Planned: 2
+                  Workers Launched: 2
+                  Buffers: shared hit=2822 read=96484
+                  ->  Sort  (cost=367008.90..377335.27 rows=4130547 width=8) (actual time=561.299..561.343 rows=888.67 loops=3)
+                        Sort Key: o.order_date DESC
+                        Sort Method: top-N heapsort  Memory: 88kB
+                        Buffers: shared hit=2822 read=96484
+                        Worker 0:  Sort Method: top-N heapsort  Memory: 88kB
+                        Worker 1:  Sort Method: top-N heapsort  Memory: 88kB
+                        ->  Parallel Seq Scan on orders o  (cost=0.00..140535.47 rows=4130547 width=8) (actual time=13.221..246.945 rows=3300000.00 loops=3)
+                              Buffers: shared hit=2746 read=96484
+      ->  Memoize  (cost=0.44..8.29 rows=1 width=29) (actual time=0.032..0.032 rows=1.00 loops=1000)
+            Cache Key: o.customer_id
+            Cache Mode: logical
+            Hits: 0  Misses: 1000  Evictions: 0  Overflows: 0  Memory Usage: 128kB
+            Buffers: shared hit=3567 read=433
+            ->  Index Scan using customer_pkey on customer c  (cost=0.43..8.28 rows=1 width=29) (actual time=0.032..0.032 rows=1.00 loops=1000)
+                  Index Cond: (customer_id = o.customer_id)
+                  Index Searches: 1000
+                  Buffers: shared hit=3567 read=433
+    Planning:
+      Buffers: shared hit=24
+    Planning Time: 0.665 ms
+    JIT:
+      Functions: 17
+      Options: Inlining false, Optimization false, Expressions true, Deforming true
+      Timing: Generation 1.879 ms (Deform 0.824 ms), Inlining 0.000 ms, Optimization 1.327 ms, Emission 9.052 ms, Total 12.258 ms
+    Execution Time: 613.422 ms
+
+- Since There is no index on the Order date the there will be over head sorting the orders by date.
+  [Visual Tree representation for the plan](https://explain.dalibo.com/plan/44a143d8a0a4d58c)
+
+##### After Optimization
+
+- Creating index on orders(customer_id) Customer's Foreign key in the orders table.
+- Creating index on orders(order_date) **means the data will be sorted which means the engine will scan the index Backward**.
+
+```sql
+CREATE INDEX idx_customer_id ON orders(customer_id);
+CREATE INDEX idx_order_date ON orders(order_date);
+ANALYZE orders;
+```
+
+    Nested Loop  (cost=0.88..2250.75 rows=1000 width=33) (actual time=0.060..6.960 rows=1000.00 loops=1)
+      Buffers: shared hit=4971
+      ->  Limit  (cost=0.43..56.31 rows=1000 width=8) (actual time=0.028..1.235 rows=1000.00 loops=1)
+            Buffers: shared hit=971
+            ->  Index Scan Backward using idx_order_date on orders o  (cost=0.43..551094.66 rows=9862939 width=8) (actual time=0.026..1.080 rows=1000.00 loops=1)
+                  Index Searches: 1
+                  Buffers: shared hit=971
+      ->  Memoize  (cost=0.44..8.29 rows=1 width=29) (actual time=0.005..0.005 rows=1.00 loops=1000)
+            Cache Key: o.customer_id
+            Cache Mode: logical
+            Hits: 0  Misses: 1000  Evictions: 0  Overflows: 0  Memory Usage: 128kB
+            Buffers: shared hit=4000
+            ->  Index Scan using customer_pkey on customer c  (cost=0.43..8.28 rows=1 width=29) (actual time=0.004..0.004 rows=1.00 loops=1000)
+                  Index Cond: (customer_id = o.customer_id)
+                  Index Searches: 1000
+                  Buffers: shared hit=4000
+    Planning:
+      Buffers: shared hit=8
+    Planning Time: 0.533 ms
+    Execution Time: 7.092 ms
+
+[Visual Tree representation for the plan](https://explain.dalibo.com/plan/357a865529cf84eg)
+
+- The engine scans 1000 record using the idx_order_date backward.
+- Stores the outpu in memory.
+- Scans the Customer_pkey index searching only for the 1000 record (output which is memoized).
+
+#### Final Conclusion
+
+- From what is obvious here by creating these indices.
+  - We eleminated (parallel sequence scan, sorting,merging the work make by two workers)
+  - We also reduced (CPU usage, disk access, memory usage).
+- Reduced the execution time more than 500 MS.
 
 ## MYSQL Query optimization
 
