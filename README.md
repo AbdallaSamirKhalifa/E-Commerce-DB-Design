@@ -420,7 +420,7 @@ COMMIT;
 
 ## POSTGRESQL Performance Tuning
 
-### SQL Query to Retrieve the total number of products in each category.
+### 1- SQL Query to Retrieve the total number of products in each category.
 
 ```sql
  EXPLAIN ANALYZE
@@ -518,7 +518,7 @@ ANALYZE product;
   - Since it does index scan the data is sorted, best suited for group aggregate (Much more effecient than hash aggregate) since we are passing the hashing cost here
     means less time and less memory (memory buckets).
 
-### SQL Query to Retrieve the most recent 1000 orders orders with customer information.
+### 2- SQL Query to Retrieve the most recent 1000 orders orders with customer information.
 
 ```sql
 EXPLAIN ANALYZE
@@ -614,7 +614,7 @@ ANALYZE orders;
   - We also reduced (CPU usage, disk access, memory usage).
 - Reduced the execution time more than 500 MS.
 
-### SQL Query to List products with stock quantity of less than 10.
+### 3- SQL Query to List products with stock quantity of less than 10.
 
 ```sql
 EXPLAIN ANALYZE
@@ -670,6 +670,211 @@ ANALYZE product;
 - Bimap index scan (Scans only the needed results no wasted work).
 - Elemenating (parallel sequential scan).
 - Reducing (Disk access and heavy IO)
+
+### 4- Analatycal queries
+
+#### 4.1 SQL Query to Calculate the total revenue for each product category.
+
+```sql
+EXPLAIN ANALYZE
+SELECT c.category_id, c.category_name, cat_revenue.total FROM category c JOIN
+(SELECT p.category_id, sum(od.quantity * od.unit_price) total FROM product p
+JOIN public.order_details od on p.product_id = od.product_id
+GROUP BY p.category_id ) cat_revenue  ON c.category_id=cat_revenue.category_id;
+```
+
+##### Initial Execution plan
+
+    Hash Join  (cost=2555774.11..2588652.54 rows=100000 width=50) (actual time=17680.015..18151.545 rows=99800.00 loops=1)
+      Hash Cond: (p.category_id = c.category_id)
+      Buffers: shared hit=14191 read=356099, temp read=394618 written=511258
+      ->  Finalize GroupAggregate  (cost=2552887.11..2584479.01 rows=101903 width=36) (actual time=17521.410..17977.363 rows=99800.00 loops=1)
+            Group Key: p.category_id
+            Buffers: shared hit=13554 read=356099, temp read=394618 written=511258
+            ->  Gather Merge  (cost=2552887.11..2581370.97 rows=244567 width=36) (actual time=17521.380..17885.891 rows=299400.00 loops=1)
+                  Workers Planned: 2
+                  Workers Launched: 2
+                  Buffers: shared hit=13554 read=356099, temp read=394618 written=511258
+                  ->  Sort  (cost=2551887.09..2552141.84 rows=101903 width=36) (actual time=17442.245..17453.465 rows=99800.00 loops=3)
+                        Sort Key: p.category_id
+                        Sort Method: external merge  Disk: 7720kB
+                        Buffers: shared hit=13554 read=356099, temp read=394618 written=511258
+                        Worker 0:  Sort Method: external merge  Disk: 7720kB
+                        Worker 1:  Sort Method: external merge  Disk: 7720kB
+                        ->  Partial HashAggregate  (cost=2336099.93..2540620.87 rows=101903 width=36) (actual time=13179.457..17413.052 rows=99800.00 loops=3)
+                              Group Key: p.category_id
+                              Planned Partitions: 4  Batches: 5  Memory Usage: 8241kB  Disk Usage: 413664kB
+                              Buffers: shared hit=13540 read=356099, temp read=391723 written=508357
+                              Worker 0:  Batches: 5  Memory Usage: 8241kB  Disk Usage: 414488kB
+                              Worker 1:  Batches: 5  Memory Usage: 8241kB  Disk Usage: 415680kB
+                              ->  Parallel Hash Join  (cost=106446.14..898736.10 rows=20812508 width=13) (actual time=4155.318..7518.224 rows=16633333.33 loops=3)
+                                    Hash Cond: (od.product_id = p.product_id)
+                                    Buffers: shared hit=13540 read=356099, temp read=236558 written=237148
+                                    ->  Parallel Seq Scan on order_details od  (cost=0.00..526278.08 rows=20812508 width=13) (actual time=0.106..1135.450 rows=16650000.00 loops=3)
+                                          Buffers: shared hit=914 read=317239
+                                    ->  Parallel Hash  (cost=72298.95..72298.95 rows=2081295 width=8) (actual time=456.307..456.307 rows=1665000.00 loops=3)
+                                          Buckets: 262144  Batches: 64  Memory Usage: 5152kB
+                                          Buffers: shared hit=12626 read=38860, temp written=17204
+                                          ->  Parallel Seq Scan on product p  (cost=0.00..72298.95 rows=2081295 width=8) (actual time=79.360..220.026 rows=1665000.00 loops=3)
+                                                Buffers: shared hit=12626 read=38860
+      ->  Hash  (cost=1637.00..1637.00 rows=100000 width=18) (actual time=158.129..158.129 rows=100000.00 loops=1)
+            Buckets: 131072  Batches: 1  Memory Usage: 5994kB
+            Buffers: shared hit=637
+            ->  Seq Scan on category c  (cost=0.00..1637.00 rows=100000 width=18) (actual time=0.015..4.686 rows=100000.00 loops=1)
+                  Buffers: shared hit=637
+    Planning:
+      Buffers: shared hit=186 read=1
+    Planning Time: 2.349 ms
+    JIT:
+      Functions: 70
+      Options: Inlining true, Optimization true, Expressions true, Deforming true
+      Timing: Generation 2.974 ms (Deform 0.989 ms), Inlining 234.692 ms, Optimization 163.297 ms, Emission 119.334 ms, Total 520.297 ms
+    Execution Time: 18221.228 ms
+
+[Visual Tree representation for the plan](https://explain.dalibo.com/plan/ef2e9e5dgg7c2ge8)
+
+> The order details tabl have about 50M row.
+
+##### After Optimization
+
+```sql
+CREATE INDEX idx_ord_det_prod_id  ON order_details(product_id);
+```
+
+    Hash Join  (cost=2555398.40..2587375.98 rows=99111 width=50) (actual time=16196.966..16666.999 rows=99800.00 loops=1)
+      Hash Cond: (p.category_id = c.category_id)
+      Buffers: shared hit=14495 read=355795, temp read=394646 written=511351
+      ->  Finalize GroupAggregate  (cost=2552511.40..2583237.70 rows=99111 width=36) (actual time=16074.717..16530.751 rows=99800.00 loops=1)
+            Group Key: p.category_id
+            Buffers: shared hit=13859 read=355794, temp read=394646 written=511351
+            ->  Gather Merge  (cost=2552511.40..2580214.81 rows=237866 width=36) (actual time=16074.688..16440.422 rows=299400.00 loops=1)
+                  Workers Planned: 2
+                  Workers Launched: 2
+                  Buffers: shared hit=13859 read=355794, temp read=394646 written=511351
+                  ->  Sort  (cost=2551511.37..2551759.15 rows=99111 width=36) (actual time=16024.841..16033.585 rows=99800.00 loops=3)
+                        Sort Key: p.category_id
+                        Sort Method: external merge  Disk: 7720kB
+                        Buffers: shared hit=13859 read=355794, temp read=394646 written=511351
+                        Worker 0:  Sort Method: external merge  Disk: 7720kB
+                        Worker 1:  Sort Method: external merge  Disk: 7720kB
+                        ->  Partial HashAggregate  (cost=2336089.12..2540574.27 rows=99111 width=36) (actual time=12131.419..15996.868 rows=99800.00 loops=3)
+                              Group Key: p.category_id
+                              Planned Partitions: 4  Batches: 5  Memory Usage: 8241kB  Disk Usage: 410496kB
+                              Buffers: shared hit=13845 read=355794, temp read=391751 written=508450
+                              Worker 0:  Batches: 5  Memory Usage: 8241kB  Disk Usage: 419720kB
+                              Worker 1:  Batches: 5  Memory Usage: 8241kB  Disk Usage: 414488kB
+                              ->  Parallel Hash Join  (cost=106443.77..898731.57 rows=20812417 width=13) (actual time=3793.645..6937.823 rows=16633333.33 loops=3)
+                                    Hash Cond: (od.product_id = p.product_id)
+                                    Buffers: shared hit=13845 read=355794, temp read=236566 written=237088
+                                    ->  Parallel Seq Scan on order_details od  (cost=0.00..526277.17 rows=20812417 width=13) (actual time=0.127..1029.269 rows=16650000.00 loops=3)
+                                          Buffers: shared hit=11070 read=307083
+                                    ->  Parallel Hash  (cost=72298.34..72298.34 rows=2081234 width=8) (actual time=410.612..410.613 rows=1665000.00 loops=3)
+                                          Buckets: 262144  Batches: 64  Memory Usage: 5184kB
+                                          Buffers: shared hit=2775 read=48711, temp written=17148
+                                          ->  Parallel Seq Scan on product p  (cost=0.00..72298.34 rows=2081234 width=8) (actual time=93.031..207.250 rows=1665000.00 loops=3)
+                                                Buffers: shared hit=2775 read=48711
+      ->  Hash  (cost=1637.00..1637.00 rows=100000 width=18) (actual time=122.206..122.206 rows=100000.00 loops=1)
+            Buckets: 131072  Batches: 1  Memory Usage: 5994kB
+            Buffers: shared hit=636 read=1
+            ->  Seq Scan on category c  (cost=0.00..1637.00 rows=100000 width=18) (actual time=0.011..5.368 rows=100000.00 loops=1)
+                  Buffers: shared hit=636 read=1
+    Planning:
+      Buffers: shared hit=74 read=10
+    Planning Time: 0.434 ms
+    JIT:
+      Functions: 70
+      Options: Inlining true, Optimization true, Expressions true, Deforming true
+      Timing: Generation 2.989 ms (Deform 1.023 ms), Inlining 193.587 ms, Optimization 176.566 ms, Emission 136.870 ms, Total 510.012 ms
+    Execution Time: 16726.654 ms
+
+[Visual Tree representation for the plan](https://explain.dalibo.com/plan/5854e59fe46fge6c)
+
+#### 4.2 SQL Query to Find the top 10 customers by total spending.
+
+```sql
+EXPLAIN ANALYZE
+    SELECT c.first_name, c.last_name , ct.TOTAL from customer c JOIN (
+    SELECT customer_id, sum(total_amount) TOTAL FROM orders
+        GROUP BY customer_id ORDER BY TOTAL DESC LIMIT 10
+    ) ct
+        ON c.customer_id=ct.customer_id;
+```
+
+##### Initial Execution plan
+
+    Nested Loop  (cost=1006665.07..1006749.26 rows=10 width=57) (actual time=5381.652..5381.677 rows=10.00 loops=1)
+      Buffers: shared hit=394 read=98879, temp read=38506 written=86021
+      ->  Limit  (cost=1006664.64..1006664.66 rows=10 width=36) (actual time=5381.612..5381.615 rows=10.00 loops=1)
+            Buffers: shared hit=354 read=98879, temp read=38506 written=86021
+            ->  Sort  (cost=1006664.64..1012346.37 rows=2272694 width=36) (actual time=5300.540..5300.542 rows=10.00 loops=1)
+                  Sort Key: (sum(orders.total_amount)) DESC
+                  Sort Method: top-N heapsort  Memory: 25kB
+                  Buffers: shared hit=354 read=98879, temp read=38506 written=86021
+                  ->  HashAggregate  (cost=832462.38..957552.54 rows=2272694 width=36) (actual time=2758.842..5023.050 rows=2475000.00 loops=1)
+                        Group Key: orders.customer_id
+                        Planned Partitions: 128  Batches: 129  Memory Usage: 8209kB  Disk Usage: 384376kB
+                        Buffers: shared hit=351 read=98879, temp read=38506 written=86021
+                        ->  Seq Scan on orders  (cost=0.00..198231.84 rows=9900184 width=9) (actual time=21.685..467.245 rows=9900000.00 loops=1)
+                              Buffers: shared hit=351 read=98879
+      ->  Index Scan using customer_pkey on customer c  (cost=0.43..8.45 rows=1 width=29) (actual time=0.004..0.004 rows=1.00 loops=10)
+            Index Cond: (customer_id = orders.customer_id)
+            Index Searches: 10
+            Buffers: shared hit=40
+    Planning:
+      Buffers: shared hit=118 read=4
+    Planning Time: 1.406 ms
+    JIT:
+      Functions: 20
+      Options: Inlining true, Optimization true, Expressions true, Deforming true
+      Timing: Generation 2.524 ms (Deform 1.207 ms), Inlining 23.729 ms, Optimization 66.564 ms, Emission 43.467 ms, Total 136.285 ms
+    Execution Time: 5437.911 ms
+
+[Visual Tree representation for the plan](https://explain.dalibo.com/plan/c42f5ggf42aa2e72)
+
+##### After optimization
+
+```sql
+CREATE INDEX idx_ord_cust_id ON orders(customer_id);
+CREATE INDEX idx_ord_cust_id_amount_cover ON orders(customer_id, total_amount);
+ANALYZE orders;
+```
+
+    Nested Loop  (cost=433182.68..433266.87 rows=10 width=57) (actual time=3402.461..3402.534 rows=10.00 loops=1)
+      Buffers: shared hit=5369519 read=37955
+      ->  Limit  (cost=433182.25..433182.27 rows=10 width=36) (actual time=3402.419..3402.421 rows=10.00 loops=1)
+            Buffers: shared hit=5369499 read=37935
+            ->  Sort  (cost=433182.25..439116.89 rows=2373857 width=36) (actual time=3386.768..3386.769 rows=10.00 loops=1)
+                  Sort Key: (sum(orders.total_amount)) DESC
+                  Sort Method: top-N heapsort  Memory: 25kB
+                  Buffers: shared hit=5369499 read=37935
+                  ->  GroupAggregate  (cost=0.56..381884.05 rows=2373857 width=36) (actual time=0.178..3078.004 rows=2475000.00 loops=1)
+                        Group Key: orders.customer_id
+                        Buffers: shared hit=5369499 read=37935
+                        ->  Index Only Scan using idx_ord_cust_id_amount_cover on orders  (cost=0.56..302308.27 rows=9980514 width=9) (actual time=0.126..1456.641 rows=9900000.00 loops=1)
+                              Heap Fetches: 0
+                              Index Searches: 1
+                              Buffers: shared hit=5369499 read=37935
+      ->  Index Scan using customer_pkey on customer c  (cost=0.43..8.45 rows=1 width=29) (actual time=0.008..0.008 rows=1.00 loops=10)
+            Index Cond: (customer_id = orders.customer_id)
+            Index Searches: 10
+            Buffers: shared hit=20 read=20
+    Planning:
+      Buffers: shared hit=45 read=4
+    Planning Time: 0.989 ms
+    JIT:
+      Functions: 10
+      Options: Inlining false, Optimization false, Expressions true, Deforming true
+      Timing: Generation 1.458 ms (Deform 0.445 ms), Inlining 0.000 ms, Optimization 0.846 ms, Emission 14.840 ms, Total 17.144 ms
+    Execution Time: 3404.106 ms
+
+[Visual Tree representation for the plan](https://explain.dalibo.com/plan/fch4a0cfd8g76b42)
+
+- The covering index reduced the disk access and execution time eleminated disk spills.
+- But here is the trade-off the index only scan takes more time than sequential scan and we created a covering index wich will affect the performance of write operations on the orders table, So according to the nature of the query (explained in the next section) it's not worth it. We might keep it as it is.
+
+#### Final Conclusion
+
+- In this type of queries since we have milion of rows to be aggregated the covering indecies might help but not always will. In query 4.1 and 4.2 we aggregating over melion of rows in 4.1 the order_details table contains 50M row and 4.2 table orders contains 10M (reading the full data is inevitable) wich is huge, this kind of problems could be avoided with denormalization, in our situation here we can create total_spending column in customer table and total_revenue column in the category tabel which will be updated with triggers each time new order or order item is added but then we will sacrifice the write performance in these tables, so we might go with backgroud jobs, how ever this is not nessecary with this type of queries. Since they migth be executed once a month or week or even once a day, we can live with this performance in this case since it could be the optimal solution.
 
 ## MYSQL Query optimization
 
