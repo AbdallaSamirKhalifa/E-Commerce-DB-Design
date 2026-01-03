@@ -430,6 +430,10 @@ GROUP BY category_id) E ON category.category_id=E.category_id;
 
 ```
 
+| Execution Time Before Optimization | Optimization Technique                    | Rewrite Query | Execution Time After Optimization |
+| ---------------------------------- | ----------------------------------------- | ------------- | --------------------------------- |
+| 582.141 ms                         | Foreign key Index on Product(category_id) | N/A           | 253.437 ms                        |
+
 > Using the subquery to minimize the number of rows that will be joined as demonstraited in the plan the join is the last operation
 > means that we only joining the desired ouput no elemenations after the hashing.
 
@@ -523,11 +527,15 @@ ANALYZE product;
 ```sql
 EXPLAIN ANALYZE
     SELECT c.customer_id, c.first_name, c.last_name, order_date  FROM customer c JOIN (
-        SELECT o.customer_id, o.order_date FROM orders o
-                                           ORDER BY order_date DESC LIMIT 1000
+    SELECT o.customer_id, o.order_date FROM orders o
+      ORDER BY order_date DESC LIMIT 1000
     ) o ON c.customer_id = o.customer_id;
 
 ```
+
+| Execution Time Before Optimization | Optimization Technique                                                | Rewrite Query | Execution Time After Optimization |
+| ---------------------------------- | --------------------------------------------------------------------- | ------------- | --------------------------------- |
+| 613.422 ms                         | Foreign key Index on Orders(cusotmer_id), Index on Orders(Order_date) | N/A           | 7.092 ms                          |
 
 #### Initial Execution Plan (Query is optimized but the performace is not optimal)
 
@@ -622,6 +630,10 @@ EXPLAIN ANALYZE
 
 ```
 
+| Execution Time Before Optimization | Optimization Technique           | Rewrite Query | Execution Time After Optimization |
+| ---------------------------------- | -------------------------------- | ------------- | --------------------------------- |
+| 110.202 ms                         | Index on Product(stock_quantity) | N/A           | 26.551 ms                         |
+
 #### Initial execution plan
 
     Gather  (cost=1000.00..87339.06 rows=88369 width=19) (actual time=0.523..107.144 rows=90000.00 loops=1)
@@ -682,6 +694,10 @@ SELECT c.category_id, c.category_name, cat_revenue.total FROM category c JOIN
 JOIN public.order_details od on p.product_id = od.product_id
 GROUP BY p.category_id ) cat_revenue  ON c.category_id=cat_revenue.category_id;
 ```
+
+| Execution Time Before Optimization | Optimization Technique                         | Rewrite Query | Execution Time After Optimization |
+| ---------------------------------- | ---------------------------------------------- | ------------- | --------------------------------- |
+| 18221.228 ms -> 18 Sec             | Foreign key Index on order_details(product_id) | N/A           | 16726.654 ms -> 16 Sec            |
 
 ##### Initial Execution plan
 
@@ -800,6 +816,10 @@ EXPLAIN ANALYZE
         ON c.customer_id=ct.customer_id;
 ```
 
+| Execution Time Before Optimization | Optimization Technique                                                                        | Rewrite Query | Execution Time After Optimization |
+| ---------------------------------- | --------------------------------------------------------------------------------------------- | ------------- | --------------------------------- |
+| 5437.911 ms -> 5 Sec               | Foreign key Index on orders(customer_id), covering index on orders(customer_id, total_amount) | N/A           | 3404.106 ms -> 3 Sec              |
+
 ##### Initial Execution plan
 
     Nested Loop  (cost=1006665.07..1006749.26 rows=10 width=57) (actual time=5381.652..5381.677 rows=10.00 loops=1)
@@ -890,6 +910,10 @@ GROUP BY C.first_name, C.last_name
 HAVING SUM(O.total_amount) ;
 ```
 
+| Execution Time Before Optimization | Optimization Technique | Rewrite Query | Execution Time After Optimization |
+| ---------------------------------- | ---------------------- | ------------- | --------------------------------- |
+| 53.992 ms                          | Query ReWriting        | Yes           | 11.534 ms                         |
+
 ###### Execution Plan
 
     GroupAggregate  (cost=28150.66..28720.14 rows=1366 width=57) (actual time=47.451..53.822 rows=2013.00 loops=1)
@@ -967,6 +991,8 @@ having sum(total_amount) > 500) top_customers on c.customer_id=top_customers.cus
     Execution Time: 11.534 ms
 
 - Each time the input is smaller which made the final output small to be the input for the join operation.
+
+---
 
 ## MYSQL Query optimization
 
