@@ -430,10 +430,6 @@ GROUP BY category_id) E ON category.category_id=E.category_id;
 
 ```
 
-| Execution Time Before Optimization | Optimization Technique                    | Rewrite Query | Execution Time After Optimization |
-| ---------------------------------- | ----------------------------------------- | ------------- | --------------------------------- |
-| 582.141 ms                         | Foreign key Index on Product(category_id) | N/A           | 253.437 ms                        |
-
 > Using the subquery to minimize the number of rows that will be joined as demonstraited in the plan the join is the last operation
 > means that we only joining the desired ouput no elemenations after the hashing.
 
@@ -533,10 +529,6 @@ EXPLAIN ANALYZE
 
 ```
 
-| Execution Time Before Optimization | Optimization Technique                                                | Rewrite Query | Execution Time After Optimization |
-| ---------------------------------- | --------------------------------------------------------------------- | ------------- | --------------------------------- |
-| 613.422 ms                         | Foreign key Index on Orders(cusotmer_id), Index on Orders(Order_date) | N/A           | 7.092 ms                          |
-
 #### Initial Execution Plan (Query is optimized but the performace is not optimal)
 
     Nested Loop  (cost=368009.37..370253.65 rows=1000 width=33) (actual time=579.044..611.587 rows=1000.00 loops=1)
@@ -630,10 +622,6 @@ EXPLAIN ANALYZE
 
 ```
 
-| Execution Time Before Optimization | Optimization Technique           | Rewrite Query | Execution Time After Optimization |
-| ---------------------------------- | -------------------------------- | ------------- | --------------------------------- |
-| 110.202 ms                         | Index on Product(stock_quantity) | N/A           | 26.551 ms                         |
-
 #### Initial execution plan
 
     Gather  (cost=1000.00..87339.06 rows=88369 width=19) (actual time=0.523..107.144 rows=90000.00 loops=1)
@@ -694,10 +682,6 @@ SELECT c.category_id, c.category_name, cat_revenue.total FROM category c JOIN
 JOIN public.order_details od on p.product_id = od.product_id
 GROUP BY p.category_id ) cat_revenue  ON c.category_id=cat_revenue.category_id;
 ```
-
-| Execution Time Before Optimization | Optimization Technique                         | Rewrite Query | Execution Time After Optimization |
-| ---------------------------------- | ---------------------------------------------- | ------------- | --------------------------------- |
-| 18221.228 ms -> 18 Sec             | Foreign key Index on order_details(product_id) | N/A           | 16726.654 ms -> 16 Sec            |
 
 ##### Initial Execution plan
 
@@ -815,10 +799,6 @@ EXPLAIN ANALYZE
     ) ct
         ON c.customer_id=ct.customer_id;
 ```
-
-| Execution Time Before Optimization | Optimization Technique                                                                        | Rewrite Query | Execution Time After Optimization |
-| ---------------------------------- | --------------------------------------------------------------------------------------------- | ------------- | --------------------------------- |
-| 5437.911 ms -> 5 Sec               | Foreign key Index on orders(customer_id), covering index on orders(customer_id, total_amount) | N/A           | 3404.106 ms -> 3 Sec              |
 
 ##### Initial Execution plan
 
@@ -974,10 +954,6 @@ GROUP BY C.first_name, C.last_name
 HAVING SUM(O.total_amount) ;
 ```
 
-| Execution Time Before Optimization | Optimization Technique | Rewrite Query | Execution Time After Optimization |
-| ---------------------------------- | ---------------------- | ------------- | --------------------------------- |
-| 53.992 ms                          | Query ReWriting        | Yes           | 11.534 ms                         |
-
 ###### Execution Plan
 
     GroupAggregate  (cost=28150.66..28720.14 rows=1366 width=57) (actual time=47.451..53.822 rows=2013.00 loops=1)
@@ -1058,6 +1034,107 @@ having sum(total_amount) > 500) top_customers on c.customer_id=top_customers.cus
 
 ---
 
+### Summary Table
+
+<table>
+  <thead>
+      <th>Required</th>
+      <th>Sample Query</th>
+      <th>Execution Time (Before Optimization)</th>
+      <th>Optimization Technique</th>
+      <th>Rewritten Query</th>
+      <th>Execution Time (After Optimization)</th>
+  </thead>
+  <tbody>
+  <tr>
+    <td>SQL Query to Retrieve the total number of products in each category.</td>
+    <td><code>SELECT category.category_name, e.TotalProducts FROM category JOIN (<br>
+              SELECT category_id, count(1) TotalProducts FROM product<br>
+              GROUP BY category_id) E ON category.category_id=E.category_id;</code></td>
+    <td>582.141 ms</td>
+    <td>Foreign key Index on Product(category_id)</td>
+    <td>N/A</td>
+    <td>253.437 ms</td>
+  </tr>
+    <tr>
+      <td>SQL Query to Retrieve the most recent 1000 orders orders<br> with customer information.</td>
+      <td><code>SELECT c.customer_id, c.first_name, c.last_name, order_date <br> FROM customer c JOIN (
+          SELECT o.customer_id, o.order_date FROM orders o<br>
+          ORDER BY order_date DESC LIMIT 1000
+        <br>) o ON c.customer_id = o.customer_id;</code></td>
+        <td>613.422 ms</td>
+        <td>Foreign key Index on Orders(cusotmer_id),<br> Index on Orders(Order_date)</td>
+        <td>N/A</td>
+        <td>7.092 ms </td>
+    </tr>
+    <tr>
+      SQL Query to Calculate the total revenue for each product category.<td>SQL Query to List products with stock quantity of less than 10.</td>
+      <td> <code>SELECT product_id, name FROM product WHERE stock_quantity &lt; 10;</code></td>
+        <td>110.202 ms</td>
+        <td>Index on Product(stock_quantity)</td>
+        <td>N/A</td>
+        <td>26.551 ms</td>
+    </tr>
+    <tr>
+      <td>SQL Query to Calculate the total revenue for each product category.</td>
+      <td> <code>SELECT c.category_id, c.category_name, cat_revenue.total FROM category c JOIN<br>
+          (SELECT p.category_id, sum(od.quantity * od.unit_price) total FROM product p<br>
+          JOIN public.order_details od on p.product_id = od.product_id<br>
+          GROUP BY p.category_id ) cat_revenue  ON c.category_id=cat_revenue.category_id;</code></td>
+        <td>18221.228 ms -> 18 Sec</td>
+        <td>Foreign key Index on order_details(product_id)</td>
+        <td>N/A</td>
+        <td>16726.654 ms -> 16 Sec </td>
+    </tr>
+    <tr>
+      <td>SQL Query to Calculate the total revenue for each product category (Same as the previous query).</td>
+      <td> <code> FROM category_name, total_revenue FROM category;</code></td>
+        <td>Time before denormalization (16726.654 ms -> 16 Sec)</td>
+        <td>New column in category table that gets updated every new product is purchased</td>
+        <td>N/A</td>
+        <td>12.215 ms</td>
+    </tr>
+    <tr>
+      <td>SQL Query to Find the top 10 customers by total spending.</td>
+      <td> <code>SELECT c.first_name, c.last_name , ct.TOTAL from customer c JOIN (<br>
+              SELECT customer_id, sum(total_amount) TOTAL FROM orders<br>
+            GROUP BY customer_id ORDER BY TOTAL DESC LIMIT 10<br>
+            ) ct ON c.customer_id=ct.customer_id;</code></td>
+        <td>5437.911 ms -> 5 Sec  </td>
+        <td>Foreign key Index on orders(customer_id),<br> covering index on orders(customer_id, total_amount) </td>
+        <td>N/A</td>
+        <td>3404.106 ms -> 3 Sec </td>
+    </tr>
+    <tr>
+          <td>SQL Query to Find the top 10 customers by total spending (Same as the previous query).</td>
+          <td> <code>SSELECT first_name, last_name, total_spending FROM <br>
+              customer ORDER BY total_spending DESC LIMIT 10</code></td>
+        <td>Time before denormalization (3404.106 ms -> 3 Sec)</td>
+        <td>New column in customer's table that gets updated every new order is created<br>
+        index on customer(total_spending DESC)</td>
+        <td>N/A</td>
+        <td>0.042 ms</td>
+    </tr>
+        <tr>
+          <td>SQL query to retrieve a list of customers who have placed orders totaling more than $500<br> in the past month (Include customer names and their total order amounts).</td>
+          <td> <code>SELECT C.first_name , C.last_name, SUM(O.total_amount) AS total_amount FROM<br>
+              customer C JOIN orders O ON C.customer_id = O.customer_id<br>
+              where O.order_date = CURRENT_DATE - Interval '1 month'<br>
+              GROUP BY C.first_name, C.last_name<br>
+              HAVING SUM(O.total_amount) ;</code></td>
+        <td>53.992 ms</td>
+        <td>Query Rewriting</td>
+        <td><code>select c.first_name, c.last_name, top_customers.total from customer c join<br>
+            (select customer_id, sum(total_amount) total from orders<br>
+            where order_id in<br>
+            (select order_id from orders<br>
+            where order_date= current_date - interval '1 month')<br>
+            group by customer_id<br>
+            having sum(total_amount) > 500) top_customers on c.customer_id=top_customers.customer_id;</code></td>
+        <td>11.534 ms</td>
+    </tr>
+  </tbody>
+</table>
 ## MYSQL Query optimization
 
 ### Practice table
