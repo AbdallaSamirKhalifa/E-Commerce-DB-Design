@@ -424,8 +424,8 @@ COMMIT;
 
 ```sql
  EXPLAIN ANALYZE
-    SELECT category.category_name FROM category JOIN (
-SELECT category_id, count(1) FROM product
+    SELECT category.category_name, e.TotalProducts FROM category JOIN (
+SELECT category_id, count(1) TotalProducts FROM product
 GROUP BY category_id) E ON category.category_id=E.category_id;
 
 ```
@@ -891,6 +891,39 @@ ANALYZE orders;
 
 - The covering index reduced the disk access and execution time eleminated disk spills.
 - But here is the trade-off the index only scan takes more time than sequential scan and we created a covering index wich will affect the performance of write operations on the orders table, So according to the nature of the query (explained in the next section) it's not worth it. We might keep it as it is.
+
+### Denormalization Approach
+
+#### 4.1 SQL Query to Calculate the total revenue for each product category.
+
+```sql
+  ALTER TABLE category ADD COLUMN total_revenue dec(10,2)
+      DEFAULT 0 CONSTRAINT chk_revenue CHECK (total_revenue >= 0);
+  UPDATE category c SET
+                      total_revenue= cat_revenue.total::DEC(10,2) FROM
+  (SELECT p.category_id cat_id, sum(od.quantity * od.unit_price) total FROM product p
+  JOIN public.order_details od ON p.product_id = od.product_id
+  WHERE P.category_id=1000 GROUP BY p.category_id )cat_revenue  WHERE c.category_id=cat_revenue.cat_id ;
+```
+
+##### Trigger to update Category's total revenue after purchacing new product
+
+```sql
+CREATE OR REPLACE FUNCTION FN_UPDATE_CAT_REV_AFTER_ORD_DET_INS()
+RETURNS TRIGGER
+    LANGUAGE plpgsql
+AS $$
+    BEGIN
+        UPDATE category c SET total_revenue = C.total_revenue + (new.unit_price * new.quantity)::DEC(10,2)
+        FROM product p WHERE p.product_id=new.product_id AND c.category_id=p.category_id;
+        RETURN NULL;
+    END;
+$$;
+CREATE OR REPLACE TRIGGER TR_UPDATE_CAT_REV_AFTER_ORD_DET_INS
+    AFTER INSERT ON order_details
+    FOR EACH ROW
+    EXECUTE FUNCTION FN_UPDATE_CAT_REV_AFTER_ORD_DET_INS();
+```
 
 #### Final Conclusion
 
