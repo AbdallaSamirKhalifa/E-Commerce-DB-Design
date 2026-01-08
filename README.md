@@ -903,7 +903,7 @@ ANALYZE orders;
                       total_revenue= cat_revenue.total::DEC(10,2) FROM
   (SELECT p.category_id cat_id, sum(od.quantity * od.unit_price) total FROM product p
   JOIN public.order_details od ON p.product_id = od.product_id
-  WHERE P.category_id=1000 GROUP BY p.category_id )cat_revenue  WHERE c.category_id=cat_revenue.cat_id ;
+  GROUP BY p.category_id )cat_revenue  WHERE c.category_id=cat_revenue.cat_id ;
 ```
 
 ##### Trigger to update Category's total revenue after purchacing new product
@@ -923,6 +923,37 @@ CREATE OR REPLACE TRIGGER TR_UPDATE_CAT_REV_AFTER_ORD_DET_INS
     AFTER INSERT ON order_details
     FOR EACH ROW
     EXECUTE FUNCTION FN_UPDATE_CAT_REV_AFTER_ORD_DET_INS();
+```
+
+#### 4.2 SQL Query to Find the top 10 customers by total spending.
+
+```sql
+ALTER TABLE customer ADD COLUMN total_spending DEC(10,2)
+    DEFAULT 0 CONSTRAINT chk_total_spending CHECK (total_spending >=0);
+
+
+UPDATE customer c SET total_spending = c_ts.total_spending::DEC(10,2) FROM (
+    SELECT customer_id, sum(total_amount) total_spending FROM orders
+    GROUP BY customer_id) c_ts where c.customer_id=c_ts.customer_id;
+```
+
+##### Trigger to update customer's total spending after creating new order.
+
+```sql
+ CREATE OR REPLACE FUNCTION FN_UPDATE_CUST_AFTER_NEW_ORDER()
+ RETURNS TRIGGER
+ LANGUAGE plpgsql
+ AS $$
+     BEGIN
+        UPDATE customer SET total_spending = total_spending + new.total_amount
+         WHERE customer_id=new.customer_id;
+        RETURN NULL;
+     END;
+$$;
+CREATE OR REPLACE TRIGGER TR_UPDATE_CUST_AFTER_NEW_ORDER
+    AFTER INSERT ON orders
+    FOR EACH ROW
+    EXECUTE FUNCTION FN_UPDATE_CUST_AFTER_NEW_ORDER();
 ```
 
 #### Final Conclusion
