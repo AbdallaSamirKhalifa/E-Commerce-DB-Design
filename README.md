@@ -91,6 +91,9 @@ These denormalizations are chosen on purpose for practical advantages in analyti
 
 <h2 align="center" id="DDL">Schema DDL</h2>
 
+<details>
+<summary>DDL Script</summary>
+
 ```sql
 
 -- CREATE DATABASE E_Commerce
@@ -109,7 +112,6 @@ Stock_QTY INT NOT NULL Check(Stock_QTY > 0),
 Category_ID INT NOT NULL,
 FOREIGN KEY (Category_ID) REFERENCES Category(Category_ID)
 );
-
 
 CREATE TABLE IF NOT EXISTS Customer(
 Customer_ID INT PRIMARY KEY,
@@ -138,7 +140,7 @@ FOREIGN KEY (Product_ID) REFERENCES Product(Product_ID)
 );
 
 CREATE TABLE IF NOT EXISTS Order_History(
-order_history_id  SERIAL  PRIMARY KEY,
+order_history_id SERIAL PRIMARY KEY,
 Order_ID INT NOT NULL,
 product_id INT NOT NULL,
 Customer_ID INT NOT NULL,
@@ -154,7 +156,10 @@ FOREIGN KEY (product_id) REFERENCES product(product_id),
 FOREIGN KEY (customer_id) REFERENCES customer(customer_id),
 FOREIGN KEY (category_id) REFERENCES category(category_id)
 )
+
 ```
+
+</details>
 
 ---
 
@@ -265,9 +270,9 @@ WHERE name ILIKE '%' || keyword || '%'
 
 > ⚠️ **Note:** This query performs a sequential scan because the pattern starts with a wildcard (%).
 > Although it works correctly, it may become slow on large tables.
-> This will optimized later on.
+ 
 
-### Alternative way of searching for keyword in POSTGRESQL
+### Alternative way of searching for keyword in postgreSQLr
 
 ```sql
 ALTER TABLE PRODUCT ADD COLUMN SEARCH_VECTOR TSVECTOR
@@ -299,6 +304,9 @@ AND category_id IN
 ---
 
 ## Procedure with transaction to create new order.
+
+<details>
+<summary>PLSQL Script</summary>
 
 ```sql
 CREATE OR REPLACE PROCEDURE SP_NEW_ORDER(
@@ -346,6 +354,8 @@ BEGIN
 END;
 $$;
 ```
+
+</details>
 
 ---
 
@@ -435,6 +445,9 @@ GROUP BY category_id) E ON category.category_id=E.category_id;
 
 #### Initial Execution Plan
 
+<details>
+<summary>Execution plan output</summary>
+
     Hash Join  (cost=107078.94..109349.37 rows=100000 width=14) (actual time=541.430..574.992 rows=99900.00 loops=1)
       Hash Cond: (product.category_id = category.category_id)
       Buffers: shared hit=2209 read=49914
@@ -467,6 +480,8 @@ GROUP BY category_id) E ON category.category_id=E.category_id;
     Execution Time: 582.141 ms
     (30 rows)
 
+</details>
+
 [Visual Tree representation for the plan](https://explain.dalibo.com/plan/cecg6ea5883f6bfg)
 
 - Since **_POSTGRES_** do not automatically create foreign key index, the optimizer choose to go ahead with sequentianl scan (full table scan) on products.
@@ -479,6 +494,9 @@ GROUP BY category_id) E ON category.category_id=E.category_id;
 CREATE INDEX idx_product_category_id ON product(category_id);
 ANALYZE product;
 ```
+
+<details>
+<summary>Execution plan output</summary>
 
     Hash Join  (cost=97982.96..99882.47 rows=98934 width=14) (actual time=229.386..250.224 rows=99900.00 loops=1)
       Hash Cond: (category.category_id = e.category_id)
@@ -511,6 +529,8 @@ ANALYZE product;
     Execution Time: 253.437 ms
     (29 rows)
 
+</details>
+
 [Visual Tree representation for the plan](https://explain.dalibo.com/plan/caba29403h0e8d70)
 
 - The total time is less than half the time without the index
@@ -530,6 +550,9 @@ EXPLAIN ANALYZE
 ```
 
 #### Initial Execution Plan (Query is optimized but the performace is not optimal)
+
+<details>
+<summary>Execution plan output</summary>
 
     Nested Loop  (cost=368009.37..370253.65 rows=1000 width=33) (actual time=579.044..611.587 rows=1000.00 loops=1)
       Buffers: shared hit=6389 read=96917
@@ -565,6 +588,8 @@ EXPLAIN ANALYZE
       Timing: Generation 1.879 ms (Deform 0.824 ms), Inlining 0.000 ms, Optimization 1.327 ms, Emission 9.052 ms, Total 12.258 ms
     Execution Time: 613.422 ms
 
+</details>
+
 [Visual Tree representation for the plan](https://explain.dalibo.com/plan/44a143d8a0a4d58c)
 
 - Since There is no index on the Order date the there will be over head sorting the orders by date.
@@ -579,6 +604,9 @@ CREATE INDEX idx_customer_id ON orders(customer_id);
 CREATE INDEX idx_order_date ON orders(order_date);
 ANALYZE orders;
 ```
+
+<details>
+<summary>Execution plan output</summary>
 
     Nested Loop  (cost=0.88..2250.75 rows=1000 width=33) (actual time=0.060..6.960 rows=1000.00 loops=1)
       Buffers: shared hit=4971
@@ -600,6 +628,8 @@ ANALYZE orders;
       Buffers: shared hit=8
     Planning Time: 0.533 ms
     Execution Time: 7.092 ms
+
+</details>
 
 [Visual Tree representation for the plan](https://explain.dalibo.com/plan/357a865529cf84eg)
 
@@ -624,6 +654,9 @@ EXPLAIN ANALYZE
 
 #### Initial execution plan
 
+<details>
+<summary>Execution plan output</summary>
+
     Gather  (cost=1000.00..87339.06 rows=88369 width=19) (actual time=0.523..107.144 rows=90000.00 loops=1)
       Workers Planned: 2
       Workers Launched: 2
@@ -636,6 +669,8 @@ EXPLAIN ANALYZE
       Buffers: shared hit=73
     Planning Time: 1.441 ms
     Execution Time: 110.202 ms
+
+</details>
 
 [Visual Tree representation for the plan](https://explain.dalibo.com/plan/fc26c34365gdfb45)
 
@@ -651,6 +686,9 @@ CREATE INDEX IDX_STOCK ON product(stock_quantity);
 ANALYZE product;
 ```
 
+<details>
+<summary>Execution plan output</summary>
+
     Bitmap Heap Scan on product  (cost=899.58..55662.37 rows=80406 width=19) (actual time=10.063..23.774 rows=90000.00 loops=1)
       Recheck Cond: (stock_quantity < 10)
       Heap Blocks: exact=10824
@@ -661,6 +699,8 @@ ANALYZE product;
             Buffers: shared hit=78
     Planning Time: 0.146 ms
     Execution Time: 26.551 ms
+
+</details>
 
 [Visual Tree representation for the plan](https://explain.dalibo.com/plan/54e63gh45863e684)
 
@@ -684,6 +724,9 @@ GROUP BY p.category_id ) cat_revenue  ON c.category_id=cat_revenue.category_id;
 ```
 
 ##### Initial Execution plan
+
+<details>
+<summary>Execution plan output</summary>
 
     Hash Join  (cost=2555774.11..2588652.54 rows=100000 width=50) (actual time=17680.015..18151.545 rows=99800.00 loops=1)
       Hash Cond: (p.category_id = c.category_id)
@@ -731,6 +774,8 @@ GROUP BY p.category_id ) cat_revenue  ON c.category_id=cat_revenue.category_id;
       Timing: Generation 2.974 ms (Deform 0.989 ms), Inlining 234.692 ms, Optimization 163.297 ms, Emission 119.334 ms, Total 520.297 ms
     Execution Time: 18221.228 ms
 
+</details>
+
 [Visual Tree representation for the plan](https://explain.dalibo.com/plan/ef2e9e5dgg7c2ge8)
 
 > The order details tabl have about 50M row.
@@ -740,6 +785,9 @@ GROUP BY p.category_id ) cat_revenue  ON c.category_id=cat_revenue.category_id;
 ```sql
 CREATE INDEX idx_ord_det_prod_id  ON order_details(product_id);
 ```
+
+<details>
+<summary>Execution plan output</summary>
 
     Hash Join  (cost=2555398.40..2587375.98 rows=99111 width=50) (actual time=16196.966..16666.999 rows=99800.00 loops=1)
       Hash Cond: (p.category_id = c.category_id)
@@ -787,6 +835,8 @@ CREATE INDEX idx_ord_det_prod_id  ON order_details(product_id);
       Timing: Generation 2.989 ms (Deform 1.023 ms), Inlining 193.587 ms, Optimization 176.566 ms, Emission 136.870 ms, Total 510.012 ms
     Execution Time: 16726.654 ms
 
+</details>
+
 [Visual Tree representation for the plan](https://explain.dalibo.com/plan/5854e59fe46fge6c)
 
 #### 4.2 SQL Query to Find the top 10 customers by total spending.
@@ -801,6 +851,9 @@ EXPLAIN ANALYZE
 ```
 
 ##### Initial Execution plan
+
+<details>
+<summary>Execution plan output</summary>
 
     Nested Loop  (cost=1006665.07..1006749.26 rows=10 width=57) (actual time=5381.652..5381.677 rows=10.00 loops=1)
       Buffers: shared hit=394 read=98879, temp read=38506 written=86021
@@ -829,6 +882,8 @@ EXPLAIN ANALYZE
       Timing: Generation 2.524 ms (Deform 1.207 ms), Inlining 23.729 ms, Optimization 66.564 ms, Emission 43.467 ms, Total 136.285 ms
     Execution Time: 5437.911 ms
 
+</details>
+
 [Visual Tree representation for the plan](https://explain.dalibo.com/plan/c42f5ggf42aa2e72)
 
 ##### After optimization
@@ -838,6 +893,9 @@ CREATE INDEX idx_ord_cust_id ON orders(customer_id);
 CREATE INDEX idx_ord_cust_id_amount_cover ON orders(customer_id, total_amount);
 ANALYZE orders;
 ```
+
+<details>
+<summary>Execution plan output</summary>
 
     Nested Loop  (cost=433182.68..433266.87 rows=10 width=57) (actual time=3402.461..3402.534 rows=10.00 loops=1)
       Buffers: shared hit=5369519 read=37955
@@ -866,6 +924,8 @@ ANALYZE orders;
       Options: Inlining false, Optimization false, Expressions true, Deforming true
       Timing: Generation 1.458 ms (Deform 0.445 ms), Inlining 0.000 ms, Optimization 0.846 ms, Emission 14.840 ms, Total 17.144 ms
     Execution Time: 3404.106 ms
+
+</details>
 
 [Visual Tree representation for the plan](https://explain.dalibo.com/plan/fch4a0cfd8g76b42)
 
@@ -956,6 +1016,9 @@ HAVING SUM(O.total_amount) ;
 
 ###### Execution Plan
 
+<details>
+<summary>Execution plan output</summary>
+
     GroupAggregate  (cost=28150.66..28720.14 rows=1366 width=57) (actual time=47.451..53.822 rows=2013.00 loops=1)
       Group Key: c.first_name, c.last_name
       Filter: (sum(o.total_amount) > '500'::numeric)
@@ -992,6 +1055,8 @@ HAVING SUM(O.total_amount) ;
     Planning Time: 0.800 ms
     Execution Time: 53.992 ms
 
+</details>
+
 ##### New query
 
 ```sql
@@ -1006,6 +1071,9 @@ having sum(total_amount) > 500) top_customers on c.customer_id=top_customers.cus
 ```
 
 ###### Execution Plan
+
+<details>
+<summary>Execution plan output</summary>
 
     Nested Loop  (cost=13781.07..25077.97 rows=1365 width=57) (actual time=5.107..11.363 rows=2013.00 loops=1)
       Buffers: shared hit=11912
@@ -1029,6 +1097,8 @@ having sum(total_amount) > 500) top_customers on c.customer_id=top_customers.cus
             Buffers: shared hit=8052
     Planning Time: 0.192 ms
     Execution Time: 11.534 ms
+
+</details>
 
 - Each time the input is smaller which made the final output small to be the input for the join operation.
 
@@ -1165,6 +1235,9 @@ create table userInfo
 
 ### Benchmark procedure for testing
 
+<details>
+<summary>PLSQL Script</summary>
+
 ```sql
  DELIMITER $$
  CREATE PROCEDURE benchmark_userinfo()
@@ -1209,6 +1282,8 @@ create table userInfo
  DELIMITER ;
 ```
 
+</details>
+
 - This benchmark procedure runs 300 times and calculates the (start time, end time, query per secon);
 
 #### The Query
@@ -1232,6 +1307,9 @@ SELECT COUNT(*) FROM userInfo WHERE name = <name> AND status_id = <status_id>;
 
 #### Query Analyses results
 
+<details>
+<summary>Execution plan output</summary>
+
     -> Aggregate: count(0)
     (cost=5.37 rows=1)
     (actual time=0.135..0.135 rows=1 loops=1)
@@ -1254,6 +1332,8 @@ SELECT COUNT(*) FROM userInfo WHERE name = <name> AND status_id = <status_id>;
                   using idx_state_id over (state_id = 100)
                   (cost=1.07 rows=100)
                   (actual time=0.0189..0.0448 rows=100 loops=1)
+
+</details>
 
 #### The problem of having two separate index makes the database (MERGE INDEXES)
 
