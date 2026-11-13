@@ -1444,6 +1444,6 @@ ALTER TABLE table_name stats_smaple_pages = <number_of_pages>;
 
 For questions or feedback:
 
-- GitHub: [@AbdullahSamirKhalifah](https://github.com/AbdullahSamirKhalifah)
+- GitHub: [@AbdallaSamirKhalifa](https://github.com/AbdallaSamirKhalifa)
 - Email: abdallasamirkhalifa@gmail.com
-- Linkedin: [Abdullah Khalifah](linkedin.com/in/abdullah-khalifah)
+- Linkedin: [Abdullah Khalifah](linkedin.com/in/abdalla-khalifa)
